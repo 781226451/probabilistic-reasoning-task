@@ -392,6 +392,7 @@ def run_experiment() -> None:
 
         instruction_text.draw()
         win.flip()
+        event.clearEvents(eventType="keyboard")
         start_key: list[str] | None = event.waitKeys(keyList=["space", "escape"])
         if start_key and "escape" in start_key:
             core.quit()
