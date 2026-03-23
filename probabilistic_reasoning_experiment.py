@@ -261,11 +261,14 @@ def generate_trial(left_color: list[float], right_color: list[float]) -> Trial:
     """
     if not SHAPE_WEIGHTS:
         raise RuntimeError("shape 权重尚未初始化，请先调用 initialize_shape_configs()")
+    if N_STIMULI_PER_TRIAL <= 0 or N_STIMULI_PER_TRIAL % 2 != 0:
+        raise ValueError("N_STIMULI_PER_TRIAL 必须是正偶数，以保证红绿数量平衡")
 
     shape_names: list[str] = list(SHAPE_WEIGHTS.keys())
     shapes_sequence: list[str] = [random.choice(shape_names) for _ in range(N_STIMULI_PER_TRIAL)]
 
-    colors: list[list[float]] = [COLOR_RED] * 3 + [COLOR_GREEN] * 3
+    half_n: int = N_STIMULI_PER_TRIAL // 2
+    colors: list[list[float]] = [COLOR_RED] * half_n + [COLOR_GREEN] * half_n
     random.shuffle(colors)
 
     left_weight: float = 0.0
