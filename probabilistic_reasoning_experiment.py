@@ -170,14 +170,13 @@ def print_shape_weights(logger: logging.Logger | None = None) -> None:
             logger.info(line)
 
 
-def check_escape(win: visual.Window) -> None:
+def check_escape() -> None:
     """全局 ESC 监听：一旦按下立即退出实验。"""
     if "escape" in event.getKeys(keyList=["escape"]):
-        win.close()
         core.quit()
 
 
-def safe_wait(win: visual.Window, duration_sec: float, check_interval: float = 0.01) -> None:
+def safe_wait(duration_sec: float, check_interval: float = 0.01) -> None:
     """可中断等待函数。
 
     与 `core.wait` 不同，这里会在等待过程中不断轮询键盘，
@@ -185,7 +184,7 @@ def safe_wait(win: visual.Window, duration_sec: float, check_interval: float = 0
     """
     timer: core.Clock = core.Clock()
     while timer.getTime() < duration_sec:
-        check_escape(win)
+        check_escape()
         remaining: float = duration_sec - timer.getTime()
         core.wait(min(check_interval, remaining))
 
@@ -201,7 +200,7 @@ def get_experiment_info() -> dict[str, Any]:
     while True:
         dlg = gui.DlgFromDict(dictionary=exp_info, title="概率推理任务", sortKeys=False)
         if not dlg.OK:
-            core.quit()
+            raise SystemExit("用户取消实验参数输入")
 
         participant_id: str = str(exp_info["被试编号"]).strip()
         if not participant_id:
@@ -229,6 +228,8 @@ def get_experiment_info() -> dict[str, Any]:
         exp_info["participant_id"] = participant_id
         exp_info["n_trials"] = n_trials
         return exp_info
+
+    raise RuntimeError("unreachable: get_experiment_info() exited input loop unexpectedly")
 
 
 def color_to_name(color: list[float]) -> str:
@@ -417,7 +418,7 @@ def run_experiment() -> None:
             center_circle.draw()
             right_circle.draw()
             win.flip()
-            safe_wait(win, INITIAL_PROMPT_DURATION / 1000.0)
+            safe_wait(INITIAL_PROMPT_DURATION / 1000.0)
 
             # 2) 序列呈现阶段：每个图形显示后接一个 ISI 空窗。
             for shape_name, color in zip(trial["shapes_sequence"], trial["colors_sequence"]):
@@ -429,13 +430,13 @@ def run_experiment() -> None:
                 right_circle.draw()
                 shape_image.draw()
                 win.flip()
-                safe_wait(win, STIMULUS_DURATION / 1000.0)
+                safe_wait(STIMULUS_DURATION / 1000.0)
 
                 left_circle.draw()
                 center_circle.draw()
                 right_circle.draw()
                 win.flip()
-                safe_wait(win, ISI_DURATION / 1000.0)
+                safe_wait(ISI_DURATION / 1000.0)
 
             # 3) 决策阶段：等待左右键，支持超时与 ESC 中断。
             decision_text.draw()
@@ -472,11 +473,11 @@ def run_experiment() -> None:
 
                 feedback_text.draw()
                 win.flip()
-                safe_wait(win, 0.8)
+                safe_wait(0.8)
 
             # 5) ITI：清屏等待，给下一试次留出间隔。
             win.flip()
-            safe_wait(win, ITI_DURATION / 1000.0)
+            safe_wait(ITI_DURATION / 1000.0)
 
             trial_data: TrialResult = {
                 "trial_num": trial_num,
@@ -510,7 +511,7 @@ def run_experiment() -> None:
         )
         end_text.draw()
         win.flip()
-        safe_wait(win, 3)
+        safe_wait(3)
 
         if all_data:
             # 使用 DictWriter 保持列顺序稳定，便于后续统计脚本解析。
