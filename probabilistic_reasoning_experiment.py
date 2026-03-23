@@ -56,7 +56,8 @@ class ShapeConfig(TypedDict):
 
 
 # ==================== Experiment Parameters ====================
-SHAPE_WEIGHTS_CONFIG_PATH: str = "assets/shape_config.toml"
+BASE_DIR: str = os.path.dirname(os.path.abspath(__file__))
+SHAPE_WEIGHTS_CONFIG_PATH: str = os.path.join(BASE_DIR, "assets", "shape_config.toml")
 LOG_FILE_PATH: str = "data/experiment.log"
 
 INITIAL_PROMPT_DURATION: int = 1500  # ms
@@ -125,8 +126,15 @@ def load_shape_configs(config_path: str = SHAPE_WEIGHTS_CONFIG_PATH) -> dict[str
     return shape_configs
 
 
-SHAPE_CONFIGS: dict[str, ShapeConfig] = load_shape_configs()
-SHAPE_WEIGHTS: dict[str, float] = {shape_name: cfg["weight"] for shape_name, cfg in SHAPE_CONFIGS.items()}
+SHAPE_CONFIGS: dict[str, ShapeConfig] = {}
+SHAPE_WEIGHTS: dict[str, float] = {}
+
+
+def initialize_shape_configs(config_path: str = SHAPE_WEIGHTS_CONFIG_PATH) -> None:
+    """在运行时加载配置，避免模块导入阶段因文件问题直接崩溃。"""
+    global SHAPE_CONFIGS, SHAPE_WEIGHTS
+    SHAPE_CONFIGS = load_shape_configs(config_path)
+    SHAPE_WEIGHTS = {shape_name: cfg["weight"] for shape_name, cfg in SHAPE_CONFIGS.items()}
 
 
 def setup_experiment_logger(log_path: str = LOG_FILE_PATH) -> logging.Logger:
@@ -146,6 +154,9 @@ def setup_experiment_logger(log_path: str = LOG_FILE_PATH) -> logging.Logger:
 
 def print_shape_weights(logger: logging.Logger | None = None) -> None:
     """打印并记录配置中的 shape 名称与权重。"""
+    if not SHAPE_CONFIGS:
+        raise RuntimeError("shape 配置尚未初始化，请先调用 initialize_shape_configs()")
+
     message = f"已读取 shape 配置文件: {SHAPE_WEIGHTS_CONFIG_PATH}"
     print(message)
     if logger is not None:
@@ -215,6 +226,9 @@ def create_shape_images(win: visual.Window, size: int = SHAPE_SIZE) -> dict[str,
     - assets/shapes/<image>_red.png
     - assets/shapes/<image>_green.png
     """
+    if not SHAPE_CONFIGS:
+        raise RuntimeError("shape 配置尚未初始化，请先调用 initialize_shape_configs()")
+
     shape_images: dict[str, dict[str, visual.ImageStim]] = {}
     for shape_name, shape_config in SHAPE_CONFIGS.items():
         shape_images[shape_name] = {}
@@ -244,6 +258,9 @@ def generate_trial(left_color: list[float], right_color: list[float]) -> Trial:
     - 颜色固定 3 红 3 绿，再随机打乱。
     - 将每个图形权重累加到对应侧（由 left/right 颜色映射决定）。
     """
+    if not SHAPE_WEIGHTS:
+        raise RuntimeError("shape 权重尚未初始化，请先调用 initialize_shape_configs()")
+
     shape_names: list[str] = list(SHAPE_WEIGHTS.keys())
     shapes_sequence: list[str] = [random.choice(shape_names) for _ in range(N_STIMULI_PER_TRIAL)]
 
@@ -280,6 +297,7 @@ def run_experiment() -> None:
     3. 试次循环（提示 -> 序列呈现 -> 决策 -> 反馈 -> ITI）。
     4. 结果保存与结束页展示。
     """
+    initialize_shape_configs()
     logger: logging.Logger = setup_experiment_logger()
     print_shape_weights(logger)
 
