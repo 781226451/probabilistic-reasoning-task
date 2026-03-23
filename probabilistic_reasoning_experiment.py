@@ -446,10 +446,11 @@ def run_experiment() -> None:
 
             # 清空此前阶段残留的键盘事件，避免提前按键污染本阶段 RT 与响应。
             event.clearEvents(eventType="keyboard")
-            decision_start_time: float = core.getTime()
-            keys: list[str] | None = event.waitKeys(
+            rt_clock: core.Clock = core.Clock()
+            keys: list[tuple[str, float]] | None = event.waitKeys(
                 keyList=["left", "right", "escape"],
                 maxWait=DECISION_TIMEOUT / 1000.0 if DECISION_TIMEOUT else None,
+                timeStamped=rt_clock,  # type: ignore[arg-type] # PsychoPy 实际支持 Clock
             )
 
             if keys is None:
@@ -459,8 +460,8 @@ def run_experiment() -> None:
             elif keys[0][0] == "escape":
                 return
             else:
-                response = keys[0]
-                rt = core.getTime() - decision_start_time
+                response = keys[0][0]
+                rt = keys[0][1]
                 is_correct = response == trial["correct_response"]
 
             # 4) 反馈阶段（可选）：仅在非超时时显示对错。
