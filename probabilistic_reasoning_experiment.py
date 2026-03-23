@@ -492,11 +492,20 @@ def run_experiment() -> None:
 
         if all_data:
             # 使用 DictWriter 保持列顺序稳定，便于后续统计脚本解析。
-            with open(f"{filename}.csv", "w", newline="", encoding="utf-8") as f:
-                writer = csv.DictWriter(f, fieldnames=all_data[0].keys())
-                writer.writeheader()
-                rows_for_csv: list[dict[str, Any]] = [dict(row) for row in all_data]
-                writer.writerows(rows_for_csv)
+            try:
+                with open(f"{filename}.csv", "w", newline="", encoding="utf-8") as f:
+                    writer = csv.DictWriter(f, fieldnames=all_data[0].keys())
+                    writer.writeheader()
+                    rows_for_csv: list[dict[str, Any]] = [dict(row) for row in all_data]
+                    writer.writerows(rows_for_csv)
+            except OSError as exc:
+                error_message = (
+                    "数据保存失败：请检查被试编号是否包含文件名非法字符，"
+                    f"participant_id={exp_info['participant_id']!r}, path={filename}.csv, error={exc}"
+                )
+                print(error_message)
+                logger.error(error_message)
+                raise
 
         print(f"数据已保存至：{filename}.csv")
         print(f"总体正确率：{accuracy:.1f}%")
