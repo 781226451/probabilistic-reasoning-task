@@ -186,6 +186,8 @@ def safe_wait(duration_sec: float, check_interval: float = 0.01) -> None:
     while timer.getTime() < duration_sec:
         check_escape()
         remaining: float = duration_sec - timer.getTime()
+        if remaining <= 0:
+            break
         core.wait(min(check_interval, remaining))
 
 
