@@ -416,6 +416,8 @@ def run_experiment() -> None:
             decision_text.draw()
             win.flip()
 
+            # 清空此前阶段残留的键盘事件，避免提前按键污染本阶段 RT 与响应。
+            event.clearEvents(eventType="keyboard")
             decision_start_time: float = core.getTime()
             keys: list[str] | None = event.waitKeys(
                 keyList=["left", "right", "escape"],
