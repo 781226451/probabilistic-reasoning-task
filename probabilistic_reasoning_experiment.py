@@ -211,7 +211,8 @@ def get_experiment_info() -> dict[str, Any]:
 
         try:
             n_trials: int = int(exp_info["试次数"])
-            assert n_trials > 0 and n_trials % 2 == 0, "试次数必须是大于 0 的偶数"
+            if n_trials <= 0 or n_trials % 2 != 0:
+                raise ValueError("试次数必须是大于 0 的偶数")
         except (TypeError, ValueError):
             error_dlg = gui.Dlg(title="输入错误")
             error_dlg.addText("试次数必须是正整数，请重新输入。")
