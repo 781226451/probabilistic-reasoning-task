@@ -1,0 +1,23 @@
+[shapes.square]
+image = "square"
+weight = 0.9
+
+[shapes.circle]
+image = "circle"
+weight = 0.54
+
+[shapes.sunburst]
+image = "sunburst"
+weight = 0.3
+
+[shapes.diamond]
+image = "diamond"
+weight = -0.3
+
+[shapes.triangle]
+image = "triangle"
+weight = -0.54
+
+[shapes.quatrefoil]
+image = "quatrefoil"
+weight = -0.9
