@@ -1,7 +1,7 @@
 ﻿"""概率推理任务（PsychoPy 实现）。
 
 任务逻辑：
-1. 每个试次展示 6 个彩色图形（3 红 + 3 绿，顺序随机）。
+1. 每个试次展示 `N_STIMULI_PER_TRIAL` 个彩色图形（红绿各半，顺序随机）。
 2. 被试根据图形类型权重，分别累加左右两侧颜色对应的总权重。
 3. 在决策阶段按左/右键选择较大的一侧。
 """
@@ -278,7 +278,7 @@ def generate_trial(left_color: list[float], right_color: list[float]) -> Trial:
 
     规则：
     - 图形序列长度固定为 `N_STIMULI_PER_TRIAL`。
-    - 颜色固定 3 红 3 绿，再随机打乱。
+    - 颜色按 `N_STIMULI_PER_TRIAL` 动态生成红绿各半（要求为正偶数），再随机打乱。
     - 将每个图形权重累加到对应侧（由 left/right 颜色映射决定）。
     """
     if not SHAPE_WEIGHTS:
