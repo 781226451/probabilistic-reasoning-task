@@ -173,7 +173,7 @@ def print_shape_weights(logger: logging.Logger | None = None) -> None:
 def check_escape() -> None:
     """全局 ESC 监听：一旦按下立即退出实验。"""
     if "escape" in event.getKeys(keyList=["escape"]):
-        core.quit()
+        raise SystemExit("用户按下 ESC 退出实验")
 
 
 def safe_wait(duration_sec: float, check_interval: float = 0.01) -> None:
@@ -396,7 +396,7 @@ def run_experiment() -> None:
         event.clearEvents(eventType="keyboard")
         start_key: list[str] | None = event.waitKeys(keyList=["space", "escape"])
         if start_key and "escape" in start_key:
-            core.quit()
+            return
 
         # 采用平衡设计：一半试次左红右绿，另一半左绿右红。
         trials: list[Trial] = []
@@ -456,8 +456,7 @@ def run_experiment() -> None:
                 response: str = "timeout"
                 rt: float = (DECISION_TIMEOUT or 0) / 1000.0
                 is_correct: bool = False
-            elif "escape" in keys:
-                core.quit()
+            elif keys[0][0] == "escape":
                 return
             else:
                 response = keys[0]
@@ -534,12 +533,10 @@ def run_experiment() -> None:
 
         print(f"数据已保存至：{filename}.csv")
         print(f"总体正确率：{accuracy:.1f}%")
-
-        core.quit()
     finally:
         if win is not None:
             win.close()
-
+        core.quit()
 
 if __name__ == "__main__":
     run_experiment()
