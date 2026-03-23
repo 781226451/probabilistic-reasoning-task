@@ -78,7 +78,7 @@ COLOR_RED: list[float] = [1, -1, -1]
 COLOR_GREEN: list[float] = [-1, 1, -1]
 COLOR_BLACK: list[float] = [-1, -1, -1]
 COLOR_WHITE: list[float] = [1, 1, 1]
-COLOR_NAME_MAP: dict[tuple[float, float, float], str] = {
+COLOR_NAME_MAP: dict[tuple[float, ...], str] = {
     tuple(COLOR_RED): "red",
     tuple(COLOR_GREEN): "green",
 }
