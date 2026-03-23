@@ -198,15 +198,37 @@ def get_experiment_info() -> dict[str, Any]:
         "是否反馈": ["否", "是"],
     }
 
-    dlg = gui.DlgFromDict(dictionary=exp_info, title="概率推理任务", sortKeys=False)
-    if not dlg.OK:
-        core.quit()
+    while True:
+        dlg = gui.DlgFromDict(dictionary=exp_info, title="概率推理任务", sortKeys=False)
+        if not dlg.OK:
+            core.quit()
 
-    exp_info["timestamp"] = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
-    exp_info["feedback_enabled"] = exp_info["是否反馈"] == "是"
-    exp_info["participant_id"] = exp_info["被试编号"]
-    exp_info["n_trials"] = exp_info["试次数"]
-    return exp_info
+        participant_id: str = str(exp_info["被试编号"]).strip()
+        if not participant_id:
+            error_dlg = gui.Dlg(title="输入错误")
+            error_dlg.addText("被试编号不能为空，请重新输入。")
+            error_dlg.show()
+            continue
+
+        try:
+            n_trials: int = int(exp_info["试次数"])
+        except (TypeError, ValueError):
+            error_dlg = gui.Dlg(title="输入错误")
+            error_dlg.addText("试次数必须是正整数，请重新输入。")
+            error_dlg.show()
+            continue
+
+        if n_trials <= 0:
+            error_dlg = gui.Dlg(title="输入错误")
+            error_dlg.addText("试次数必须大于 0，请重新输入。")
+            error_dlg.show()
+            continue
+
+        exp_info["timestamp"] = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+        exp_info["feedback_enabled"] = exp_info["是否反馈"] == "是"
+        exp_info["participant_id"] = participant_id
+        exp_info["n_trials"] = n_trials
+        return exp_info
 
 
 def color_to_name(color: list[float]) -> str:
