@@ -58,7 +58,8 @@ class ShapeConfig(TypedDict):
 # ==================== Experiment Parameters ====================
 BASE_DIR: str = os.path.dirname(os.path.abspath(__file__))
 SHAPE_WEIGHTS_CONFIG_PATH: str = os.path.join(BASE_DIR, "assets", "shape_config.toml")
-LOG_FILE_PATH: str = "data/experiment.log"
+DATA_DIR: str = os.path.join(BASE_DIR, "data")
+LOG_FILE_PATH: str = os.path.join(DATA_DIR, "experiment.log")
 
 INITIAL_PROMPT_DURATION: int = 1500  # ms
 STIMULUS_DURATION: int = 500         # ms
@@ -71,7 +72,7 @@ CIRCLE_SIZE: int = 80
 SHAPE_SIZE: int = 250
 SCREEN_SIZE_PIX: list[int] = [3840, 2160]
 SIDE_CIRCLE_X_OFFSET: int = 1400
-SHAPE_IMAGE_DIR: str = "assets/shapes"
+SHAPE_IMAGE_DIR: str = os.path.join(BASE_DIR, "assets", "shapes")
 SHAPE_IMAGE_EXT: str = ".png"
 
 # PsychoPy 颜色采用 [-1, 1] 范围的 RGB。
@@ -305,11 +306,11 @@ def run_experiment() -> None:
     n_trials: int = int(exp_info["n_trials"])
     provide_feedback: bool = bool(exp_info["feedback_enabled"])
 
-    if not os.path.exists("data"):
-        os.makedirs("data")
+    if not os.path.exists(DATA_DIR):
+        os.makedirs(DATA_DIR)
 
     # 保存文件名包含被试编号与时间戳，避免覆盖历史数据。
-    filename: str = f"data/sub-{exp_info['participant_id']}_{exp_info['timestamp']}"
+    filename: str = os.path.join(DATA_DIR, f"sub-{exp_info['participant_id']}_{exp_info['timestamp']}")
 
     win: visual.Window | None = None
     try:
