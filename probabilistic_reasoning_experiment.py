@@ -311,192 +311,194 @@ def run_experiment() -> None:
     # 保存文件名包含被试编号与时间戳，避免覆盖历史数据。
     filename: str = f"data/sub-{exp_info['participant_id']}_{exp_info['timestamp']}"
 
-    win: visual.Window = visual.Window(
-        size=SCREEN_SIZE_PIX,
-        fullscr=True,
-        color=COLOR_WHITE,
-        units="pix",
-        allowGUI=False,
-    )
-
-    shape_images: dict[str, dict[str, visual.ImageStim]] = create_shape_images(win)
-
-    left_circle = visual.Circle(
-        win,
-        radius=CIRCLE_SIZE / 2,
-        pos=[-SIDE_CIRCLE_X_OFFSET, 0],
-        fillColor=COLOR_RED,
-        lineColor=None,
-    )
-    center_circle = visual.Circle(win, radius=CIRCLE_SIZE / 2, pos=[0, 0], fillColor=COLOR_BLACK, lineColor=None)
-    right_circle = visual.Circle(
-        win,
-        radius=CIRCLE_SIZE / 2,
-        pos=[SIDE_CIRCLE_X_OFFSET, 0],
-        fillColor=COLOR_GREEN,
-        lineColor=None,
-    )
-
-    instruction_text = visual.TextStim(
-        win,
-        text=(
-            "欢迎参加实验！\n"
-            "每个试次会呈现一串不同颜色的图形图片。\n"
-            "请按左右两侧颜色分别累加权重，并判断哪一侧更大。\n"
-            "如果左侧总权重大于或等于右侧，请按左方向键（LEFT）。\n"
-            "如果左侧总权重小于右侧，请按右方向键（RIGHT）。\n"
-            "按空格键（SPACE）开始。"
-        ),
-        color=COLOR_BLACK,
-        height=60,
-        wrapWidth=1500,
-    )
-
-    decision_text = visual.TextStim(
-        win,
-        text="请作答\n\n左键（LEFT）：左侧总权重更高\n右键（RIGHT）：右侧总权重更高",
-        color=COLOR_BLACK,
-        height=35,
-    )
-
-    feedback_text = visual.TextStim(win, text="", color=COLOR_BLACK, height=40)
-
-    instruction_text.draw()
-    win.flip()
-    start_key: list[str] | None = event.waitKeys(keyList=["space", "escape"])
-    if start_key and "escape" in start_key:
-        win.close()
-        core.quit()
-
-    # 采用平衡设计：一半试次左红右绿，另一半左绿右红。
-    trials: list[Trial] = []
-    for i in range(n_trials):
-        if i < n_trials // 2:
-            trial = generate_trial(COLOR_RED, COLOR_GREEN)
-        else:
-            trial = generate_trial(COLOR_GREEN, COLOR_RED)
-        trials.append(trial)
-
-    random.shuffle(trials)
-
-    all_data: list[TrialResult] = []
-
-    for trial_num, trial in enumerate(trials, 1):
-        left_circle.fillColor = trial["left_color"]
-        right_circle.fillColor = trial["right_color"]
-
-        # 1) 初始提示阶段：先展示左右颜色映射与中心参考点。
-        left_circle.draw()
-        center_circle.draw()
-        right_circle.draw()
-        win.flip()
-        safe_wait(win, INITIAL_PROMPT_DURATION / 1000.0)
-
-        # 2) 序列呈现阶段：每个图形显示后接一个 ISI 空窗。
-        for shape_name, color in zip(trial["shapes_sequence"], trial["colors_sequence"]):
-            color_name = color_to_name(color)
-            shape_image = shape_images[shape_name][color_name]
-
-            left_circle.draw()
-            center_circle.draw()
-            right_circle.draw()
-            shape_image.draw()
-            win.flip()
-            safe_wait(win, STIMULUS_DURATION / 1000.0)
-
-            left_circle.draw()
-            center_circle.draw()
-            right_circle.draw()
-            win.flip()
-            safe_wait(win, ISI_DURATION / 1000.0)
-
-        # 3) 决策阶段：等待左右键，支持超时与 ESC 中断。
-        decision_text.draw()
-        win.flip()
-
-        decision_start_time: float = core.getTime()
-        keys: list[str] | None = event.waitKeys(
-            keyList=["left", "right", "escape"],
-            maxWait=DECISION_TIMEOUT / 1000.0 if DECISION_TIMEOUT else None,
+    win: visual.Window | None = None
+    try:
+        win = visual.Window(
+            size=SCREEN_SIZE_PIX,
+            fullscr=True,
+            color=COLOR_WHITE,
+            units="pix",
+            allowGUI=False,
         )
 
-        if keys is None:
-            response: str = "timeout"
-            rt: float = (DECISION_TIMEOUT or 0) / 1000.0
-            is_correct: bool = False
-        elif "escape" in keys:
-            win.close()
-            core.quit()
-            return
-        else:
-            response = keys[0]
-            rt = core.getTime() - decision_start_time
-            is_correct = response == trial["correct_response"]
+        shape_images: dict[str, dict[str, visual.ImageStim]] = create_shape_images(win)
 
-        # 4) 反馈阶段（可选）：仅在非超时时显示对错。
-        if provide_feedback and response != "timeout":
-            if is_correct:
-                feedback_text.text = "正确"
-                feedback_text.color = [-1, 1, -1]
-            else:
-                feedback_text.text = "错误"
-                feedback_text.color = [1, -1, -1]
+        left_circle = visual.Circle(
+            win,
+            radius=CIRCLE_SIZE / 2,
+            pos=[-SIDE_CIRCLE_X_OFFSET, 0],
+            fillColor=COLOR_RED,
+            lineColor=None,
+        )
+        center_circle = visual.Circle(win, radius=CIRCLE_SIZE / 2, pos=[0, 0], fillColor=COLOR_BLACK, lineColor=None)
+        right_circle = visual.Circle(
+            win,
+            radius=CIRCLE_SIZE / 2,
+            pos=[SIDE_CIRCLE_X_OFFSET, 0],
+            fillColor=COLOR_GREEN,
+            lineColor=None,
+        )
 
-            feedback_text.draw()
-            win.flip()
-            safe_wait(win, 0.8)
+        instruction_text = visual.TextStim(
+            win,
+            text=(
+                "欢迎参加实验！\n"
+                "每个试次会呈现一串不同颜色的图形图片。\n"
+                "请按左右两侧颜色分别累加权重，并判断哪一侧更大。\n"
+                "如果左侧总权重大于或等于右侧，请按左方向键（LEFT）。\n"
+                "如果左侧总权重小于右侧，请按右方向键（RIGHT）。\n"
+                "按空格键（SPACE）开始。"
+            ),
+            color=COLOR_BLACK,
+            height=60,
+            wrapWidth=1500,
+        )
 
-        # 5) ITI：清屏等待，给下一试次留出间隔。
+        decision_text = visual.TextStim(
+            win,
+            text="请作答\n\n左键（LEFT）：左侧总权重更高\n右键（RIGHT）：右侧总权重更高",
+            color=COLOR_BLACK,
+            height=35,
+        )
+
+        feedback_text = visual.TextStim(win, text="", color=COLOR_BLACK, height=40)
+
+        instruction_text.draw()
         win.flip()
-        safe_wait(win, ITI_DURATION / 1000.0)
+        start_key: list[str] | None = event.waitKeys(keyList=["space", "escape"])
+        if start_key and "escape" in start_key:
+            core.quit()
 
-        trial_data: TrialResult = {
-            "trial_num": trial_num,
-            "left_color": "red" if trial["left_color"] == COLOR_RED else "green",
-            "right_color": "red" if trial["right_color"] == COLOR_RED else "green",
-            "shapes_sequence": ",".join(trial["shapes_sequence"]),
-            "colors_sequence": ",".join(["red" if c == COLOR_RED else "green" for c in trial["colors_sequence"]]),
-            "left_weight": trial["left_weight"],
-            "right_weight": trial["right_weight"],
-            "weight_difference": trial["left_weight"] - trial["right_weight"],
-            "correct_response": trial["correct_response"],
-            "participant_response": response,
-            "is_correct": is_correct,
-            "reaction_time": rt,
-        }
-        all_data.append(trial_data)
+        # 采用平衡设计：一半试次左红右绿，另一半左绿右红。
+        trials: list[Trial] = []
+        for i in range(n_trials):
+            if i < n_trials // 2:
+                trial = generate_trial(COLOR_RED, COLOR_GREEN)
+            else:
+                trial = generate_trial(COLOR_GREEN, COLOR_RED)
+            trials.append(trial)
 
-        print(f"第 {trial_num}/{n_trials} 试次完成")
+        random.shuffle(trials)
 
-    accuracy: float = (
-        (sum(1 for d in all_data if d["is_correct"]) / len(all_data) * 100)
-        if all_data
-        else 0.0
-    )
+        all_data: list[TrialResult] = []
 
-    end_text = visual.TextStim(
-        win,
-        text=f"实验结束！\n\n正确率：{accuracy:.1f}%\n\n感谢参与！",
-        color=COLOR_BLACK,
-        height=35,
-    )
-    end_text.draw()
-    win.flip()
-    safe_wait(win, 3)
+        for trial_num, trial in enumerate(trials, 1):
+            left_circle.fillColor = trial["left_color"]
+            right_circle.fillColor = trial["right_color"]
 
-    if all_data:
-        # 使用 DictWriter 保持列顺序稳定，便于后续统计脚本解析。
-        with open(f"{filename}.csv", "w", newline="", encoding="utf-8") as f:
-            writer = csv.DictWriter(f, fieldnames=all_data[0].keys())
-            writer.writeheader()
-            rows_for_csv: list[dict[str, Any]] = [dict(row) for row in all_data]
-            writer.writerows(rows_for_csv)
+            # 1) 初始提示阶段：先展示左右颜色映射与中心参考点。
+            left_circle.draw()
+            center_circle.draw()
+            right_circle.draw()
+            win.flip()
+            safe_wait(win, INITIAL_PROMPT_DURATION / 1000.0)
 
-    print(f"数据已保存至：{filename}.csv")
-    print(f"总体正确率：{accuracy:.1f}%")
+            # 2) 序列呈现阶段：每个图形显示后接一个 ISI 空窗。
+            for shape_name, color in zip(trial["shapes_sequence"], trial["colors_sequence"]):
+                color_name = color_to_name(color)
+                shape_image = shape_images[shape_name][color_name]
 
-    win.close()
-    core.quit()
+                left_circle.draw()
+                center_circle.draw()
+                right_circle.draw()
+                shape_image.draw()
+                win.flip()
+                safe_wait(win, STIMULUS_DURATION / 1000.0)
+
+                left_circle.draw()
+                center_circle.draw()
+                right_circle.draw()
+                win.flip()
+                safe_wait(win, ISI_DURATION / 1000.0)
+
+            # 3) 决策阶段：等待左右键，支持超时与 ESC 中断。
+            decision_text.draw()
+            win.flip()
+
+            decision_start_time: float = core.getTime()
+            keys: list[str] | None = event.waitKeys(
+                keyList=["left", "right", "escape"],
+                maxWait=DECISION_TIMEOUT / 1000.0 if DECISION_TIMEOUT else None,
+            )
+
+            if keys is None:
+                response: str = "timeout"
+                rt: float = (DECISION_TIMEOUT or 0) / 1000.0
+                is_correct: bool = False
+            elif "escape" in keys:
+                core.quit()
+                return
+            else:
+                response = keys[0]
+                rt = core.getTime() - decision_start_time
+                is_correct = response == trial["correct_response"]
+
+            # 4) 反馈阶段（可选）：仅在非超时时显示对错。
+            if provide_feedback and response != "timeout":
+                if is_correct:
+                    feedback_text.text = "正确"
+                    feedback_text.color = [-1, 1, -1]
+                else:
+                    feedback_text.text = "错误"
+                    feedback_text.color = [1, -1, -1]
+
+                feedback_text.draw()
+                win.flip()
+                safe_wait(win, 0.8)
+
+            # 5) ITI：清屏等待，给下一试次留出间隔。
+            win.flip()
+            safe_wait(win, ITI_DURATION / 1000.0)
+
+            trial_data: TrialResult = {
+                "trial_num": trial_num,
+                "left_color": "red" if trial["left_color"] == COLOR_RED else "green",
+                "right_color": "red" if trial["right_color"] == COLOR_RED else "green",
+                "shapes_sequence": ",".join(trial["shapes_sequence"]),
+                "colors_sequence": ",".join(["red" if c == COLOR_RED else "green" for c in trial["colors_sequence"]]),
+                "left_weight": trial["left_weight"],
+                "right_weight": trial["right_weight"],
+                "weight_difference": trial["left_weight"] - trial["right_weight"],
+                "correct_response": trial["correct_response"],
+                "participant_response": response,
+                "is_correct": is_correct,
+                "reaction_time": rt,
+            }
+            all_data.append(trial_data)
+
+            print(f"第 {trial_num}/{n_trials} 试次完成")
+
+        accuracy: float = (
+            (sum(1 for d in all_data if d["is_correct"]) / len(all_data) * 100)
+            if all_data
+            else 0.0
+        )
+
+        end_text = visual.TextStim(
+            win,
+            text=f"实验结束！\n\n正确率：{accuracy:.1f}%\n\n感谢参与！",
+            color=COLOR_BLACK,
+            height=35,
+        )
+        end_text.draw()
+        win.flip()
+        safe_wait(win, 3)
+
+        if all_data:
+            # 使用 DictWriter 保持列顺序稳定，便于后续统计脚本解析。
+            with open(f"{filename}.csv", "w", newline="", encoding="utf-8") as f:
+                writer = csv.DictWriter(f, fieldnames=all_data[0].keys())
+                writer.writeheader()
+                rows_for_csv: list[dict[str, Any]] = [dict(row) for row in all_data]
+                writer.writerows(rows_for_csv)
+
+        print(f"数据已保存至：{filename}.csv")
+        print(f"总体正确率：{accuracy:.1f}%")
+
+        core.quit()
+    finally:
+        if win is not None:
+            win.close()
 
 
 if __name__ == "__main__":
