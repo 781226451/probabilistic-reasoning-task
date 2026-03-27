@@ -16,6 +16,7 @@ from datetime import datetime
 from typing import Any, TypedDict
 
 from psychopy import core, event, gui, visual
+from pylsl import StreamInfo, StreamOutlet, cf_int8
 import tomllib
 
 
@@ -74,6 +75,13 @@ SCREEN_SIZE_PIX: list[int] = [3840, 2160]
 SIDE_CIRCLE_X_OFFSET: int = 1400
 SHAPE_IMAGE_DIR: str = os.path.join(BASE_DIR, "assets", "shapes")
 SHAPE_IMAGE_EXT: str = ".png"
+LSL_STREAM_NAME: str = "SEEG_Marker"
+LSL_STREAM_TYPE: str = "Markers"
+LSL_SOURCE_ID: str = "paradigm_seeg_marker"
+
+# LSL marker 常量
+LEFT_KEY_PRESSED = 16
+RIGHT_KEY_PRESSED = 17
 
 # PsychoPy 颜色采用 [-1, 1] 范围的 RGB。
 COLOR_RED: list[float] = [1, -1, -1]
@@ -338,6 +346,17 @@ def run_experiment() -> None:
 
     win: visual.Window | None = None
     try:
+        # 初始化 LSL marker stream
+        marker_info = StreamInfo(
+            name=LSL_STREAM_NAME,
+            type=LSL_STREAM_TYPE,
+            channel_count=1,
+            nominal_srate=0.0,
+            channel_format=cf_int8,
+            source_id=LSL_SOURCE_ID,
+        )
+        marker_outlet = StreamOutlet(marker_info)
+
         win = visual.Window(
             size=SCREEN_SIZE_PIX,
             fullscr=True,
@@ -459,6 +478,11 @@ def run_experiment() -> None:
             else:
                 response = keys[0][0]
                 rt = keys[0][1]
+                # 发送 LSL marker
+                if response == "left":
+                    marker_outlet.push_sample([LEFT_KEY_PRESSED])
+                elif response == "right":
+                    marker_outlet.push_sample([RIGHT_KEY_PRESSED])
                 is_correct = response == trial["correct_response"]
 
             # 4) 反馈阶段（可选）：仅在非超时时显示对错。
