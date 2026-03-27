@@ -203,7 +203,7 @@ def get_experiment_info() -> dict[str, Any]:
     """收集实验参数并转换成程序内部字段。"""
     exp_info: dict[str, Any] = {
         "被试编号": "",
-        "试次数": 60,
+        "组数": 60,
         "是否反馈": ["否", "是"],
     }
 
@@ -220,9 +220,9 @@ def get_experiment_info() -> dict[str, Any]:
             continue
 
         try:
-            n_trials: int = int(exp_info["试次数"])
+            n_trials: int = int(exp_info["组数"])
             if n_trials <= 0 or n_trials % 2 != 0:
-                raise ValueError("试次数必须是大于 0 的偶数")
+                raise ValueError("组数必须是大于 0 的偶数")
         except (TypeError, ValueError) as exc:
             error_dlg = gui.Dlg(title="输入错误")
             error_dlg.addText(f"{exc}，请重新输入。")
