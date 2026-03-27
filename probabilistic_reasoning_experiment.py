@@ -75,6 +75,7 @@ SCREEN_SIZE_PIX: list[int] = [3840, 2160]
 SIDE_CIRCLE_X_OFFSET: int = 1400
 SHAPE_IMAGE_DIR: str = os.path.join(BASE_DIR, "assets", "shapes")
 SHAPE_IMAGE_EXT: str = ".png"
+FONT_PATH: str = os.path.join(BASE_DIR, "assets", "fonts", "NotoSansSC-Regular.ttf")
 LSL_STREAM_NAME: str = "SEEG_Marker"
 LSL_STREAM_TYPE: str = "Markers"
 LSL_SOURCE_ID: str = "paradigm_seeg_marker"
@@ -396,6 +397,8 @@ def run_experiment() -> None:
             color=COLOR_BLACK,
             height=60,
             wrapWidth=1500,
+            font="Noto Sans SC",
+            fontFiles=[FONT_PATH],
         )
 
         decision_text = visual.TextStim(
@@ -403,9 +406,13 @@ def run_experiment() -> None:
             text="请作答\n\n左键（LEFT）：左侧总权重更高\n右键（RIGHT）：右侧总权重更高",
             color=COLOR_BLACK,
             height=35,
+            font="Noto Sans SC",
+            fontFiles=[FONT_PATH],
         )
 
-        feedback_text = visual.TextStim(win, text="", color=COLOR_BLACK, height=40)
+        feedback_text = visual.TextStim(
+            win, text="", color=COLOR_BLACK, height=40, font="Noto Sans SC", fontFiles=[FONT_PATH]
+        )
 
         instruction_text.draw()
         win.flip()
@@ -531,6 +538,8 @@ def run_experiment() -> None:
             text=f"实验结束！\n\n正确率：{accuracy:.1f}%\n\n感谢参与！",
             color=COLOR_BLACK,
             height=35,
+            font="Noto Sans SC",
+            fontFiles=[FONT_PATH],
         )
         end_text.draw()
         win.flip()
