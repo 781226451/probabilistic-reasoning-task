@@ -221,8 +221,8 @@ def get_experiment_info() -> dict[str, Any]:
 
         try:
             n_trials: int = int(exp_info["组数"])
-            if n_trials <= 0 or n_trials % 2 != 0:
-                raise ValueError("组数必须是大于 0 的偶数")
+            if n_trials <= 0:
+                raise ValueError("组数必须是大于 0 的整数")
         except (TypeError, ValueError) as exc:
             error_dlg = gui.Dlg(title="输入错误")
             error_dlg.addText(f"{exc}，请重新输入。")
