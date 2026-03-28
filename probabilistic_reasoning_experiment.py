@@ -268,6 +268,8 @@ def create_shape_images(win: visual.Window, size: int = SHAPE_SIZE) -> dict[str,
                 image=image_path,
                 size=(size, size),
                 pos=(0, 0),
+                color=(255,255,255),
+                colorSpace='rgb255'
             )
     return shape_images
 
