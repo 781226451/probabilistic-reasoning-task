@@ -32,28 +32,19 @@ class Trial(TypedDict):
     correct_response: str
 
 
-class TrialResult(TypedDict):
-    """单个试次的行为结果（用于 CSV 输出）。"""
-
-    trial_num: int
-    left_color: str
-    right_color: str
-    shapes_sequence: str
-    colors_sequence: str
-    left_weight: float
-    right_weight: float
-    weight_difference: float
-    correct_response: str
-    participant_response: str
-    is_correct: bool
-    reaction_time: float
-
-
 class ShapeConfig(TypedDict):
     """单个 shape 的配置。"""
 
     image: str
     weight: float
+
+
+class EventLog(TypedDict):
+    """事件日志记录。"""
+
+    event_type: str
+    timestamp: str
+    content: str
 
 
 # ==================== Experiment Parameters ====================
@@ -390,10 +381,9 @@ def run_experiment() -> None:
     # 记录实验信息到日志
     logger.info(f"实验开始 - 被试编号: {exp_info['participant_id']}, 时间戳: {exp_info['timestamp']}, trial数: {n_trials}, 是否反馈: {provide_feedback}")
 
-    # 保存文件名包含被试编号与时间戳，避免覆盖历史数据。
-    filename: str = os.path.join(experiment_folder, f"sub-{exp_info['participant_id']}_{exp_info['timestamp']}")
-
     win: visual.Window | None = None
+    event_logs: list[EventLog] = []  # 在try外部定义，确保finally块可以访问
+
     try:
         # 初始化 LSL marker stream
         marker_info = StreamInfo(
@@ -480,21 +470,48 @@ def run_experiment() -> None:
 
         random.shuffle(trials)
 
-        all_data: list[TrialResult] = []
+        correct_count: int = 0  # 统计正确次数
+
+        # 记录实验开始事件
+        event_logs.append({
+            "event_type": "experiment_start",
+            "timestamp": datetime.now().strftime("%Y%m%d%H%M%S.%f")[:-3],
+            "content": f"实验开始，被试编号: {exp_info['participant_id']}, trial数: {n_trials}",
+        })
 
         for trial_num, trial in enumerate(trials, 1):
+            # 记录trial开始时间
+            trial_start_time = datetime.now().strftime("%Y%m%d%H%M%S.%f")[:-3]  # 保留到毫秒
+            logger.info(f"Trial {trial_num} 开始 - 时间: {trial_start_time}")
+
             left_circle.fillColor = trial["left_color"]
             right_circle.fillColor = trial["right_color"]
+
+            left_color_name = "red" if trial["left_color"] == COLOR_RED else "green"
+            right_color_name = "red" if trial["right_color"] == COLOR_RED else "green"
+
+            event_logs.append({
+                "event_type": "trial_start",
+                "timestamp": trial_start_time,
+                "content": f"Trial {trial_num} 开始, 左侧: {left_color_name}, 右侧: {right_color_name}",
+            })
 
             # 1) 初始提示阶段：先展示左右颜色映射与中心参考点。
             left_circle.draw()
             center_circle.draw()
             right_circle.draw()
             win.flip()
+
+            event_logs.append({
+                "event_type": "initial_prompt",
+                "timestamp": datetime.now().strftime("%Y%m%d%H%M%S.%f")[:-3],
+                "content": f"Trial {trial_num} 初始提示显示 ({INITIAL_PROMPT_DURATION}ms)",
+            })
+
             safe_wait(INITIAL_PROMPT_DURATION / 1000.0)
 
             # 2) 序列呈现阶段：每个图形显示后接一个 ISI 空窗。
-            for shape_name, color in zip(trial["shapes_sequence"], trial["colors_sequence"]):
+            for stim_idx, (shape_name, color) in enumerate(zip(trial["shapes_sequence"], trial["colors_sequence"]), 1):
                 color_name = color_to_name(color)
                 shape_image = shape_images[shape_name][color_name]
 
@@ -503,6 +520,13 @@ def run_experiment() -> None:
                 right_circle.draw()
                 shape_image.draw()
                 win.flip()
+
+                event_logs.append({
+                    "event_type": "stimulus_display",
+                    "timestamp": datetime.now().strftime("%Y%m%d%H%M%S.%f")[:-3],
+                    "content": f"Trial {trial_num} 刺激 {stim_idx}: {shape_name} ({color_name}), 权重: {SHAPE_WEIGHTS[shape_name]}",
+                })
+
                 safe_wait(STIMULUS_DURATION / 1000.0)
 
                 left_circle.draw()
@@ -514,6 +538,13 @@ def run_experiment() -> None:
             # 3) 决策阶段：等待左右键，支持超时与 ESC 中断。
             decision_text.draw()
             win.flip()
+
+            decision_start_timestamp = datetime.now().strftime("%Y%m%d%H%M%S.%f")[:-3]
+            event_logs.append({
+                "event_type": "decision_prompt",
+                "timestamp": decision_start_timestamp,
+                "content": f"Trial {trial_num} 决策提示显示",
+            })
 
             # 清空此前阶段残留的键盘事件，避免提前按键污染本阶段 RT 与响应。
             event.clearEvents(eventType="keyboard")
@@ -540,6 +571,13 @@ def run_experiment() -> None:
                     marker_outlet.push_sample([RIGHT_KEY_PRESSED])
                 is_correct = response == trial["correct_response"]
 
+            # 记录响应事件
+            event_logs.append({
+                "event_type": "response",
+                "timestamp": datetime.now().strftime("%Y%m%d%H%M%S.%f")[:-3],
+                "content": f"Trial {trial_num} 响应: {response}, 正确: {is_correct}, RT: {rt:.3f}s",
+            })
+
             # 4) 反馈阶段（可选）：仅在非超时时显示对错。
             if provide_feedback and response != "timeout":
                 if is_correct:
@@ -551,35 +589,43 @@ def run_experiment() -> None:
 
                 feedback_text.draw()
                 win.flip()
+
+                event_logs.append({
+                    "event_type": "feedback",
+                    "timestamp": datetime.now().strftime("%Y%m%d%H%M%S.%f")[:-3],
+                    "content": f"Trial {trial_num} 反馈: {'正确' if is_correct else '错误'}",
+                })
+
                 safe_wait(0.8)
 
             # 5) ITI：清屏等待，给下一试次留出间隔。
             win.flip()
             safe_wait(ITI_DURATION / 1000.0)
 
-            trial_data: TrialResult = {
-                "trial_num": trial_num,
-                "left_color": "red" if trial["left_color"] == COLOR_RED else "green",
-                "right_color": "red" if trial["right_color"] == COLOR_RED else "green",
-                "shapes_sequence": ",".join(trial["shapes_sequence"]),
-                "colors_sequence": ",".join(["red" if c == COLOR_RED else "green" for c in trial["colors_sequence"]]),
-                "left_weight": trial["left_weight"],
-                "right_weight": trial["right_weight"],
-                "weight_difference": trial["left_weight"] - trial["right_weight"],
-                "correct_response": trial["correct_response"],
-                "participant_response": response,
-                "is_correct": is_correct,
-                "reaction_time": rt,
-            }
-            all_data.append(trial_data)
+            # 记录trial结束时间
+            trial_end_time = datetime.now().strftime("%Y%m%d%H%M%S.%f")[:-3]  # 保留到毫秒
+            logger.info(f"Trial {trial_num} 结束 - 时间: {trial_end_time}, 响应: {response}, 正确: {is_correct}")
+
+            event_logs.append({
+                "event_type": "trial_end",
+                "timestamp": trial_end_time,
+                "content": f"Trial {trial_num} 结束",
+            })
+
+            # 统计正确次数
+            if is_correct:
+                correct_count += 1
 
             print(f"第 {trial_num}/{n_trials} 试次完成")
 
-        accuracy: float = (
-            (sum(1 for d in all_data if d["is_correct"]) / len(all_data) * 100)
-            if all_data
-            else 0.0
-        )
+        accuracy: float = (correct_count / n_trials * 100) if n_trials > 0 else 0.0
+
+        # 记录实验结束事件
+        event_logs.append({
+            "event_type": "experiment_end",
+            "timestamp": datetime.now().strftime("%Y%m%d%H%M%S.%f")[:-3],
+            "content": f"实验结束，正确率: {accuracy:.1f}%",
+        })
 
         end_text = visual.TextStim(
             win,
@@ -593,26 +639,24 @@ def run_experiment() -> None:
         win.flip()
         safe_wait(3)
 
-        if all_data:
-            # 使用 DictWriter 保持列顺序稳定，便于后续统计脚本解析。
-            try:
-                with open(f"{filename}.csv", "w", newline="", encoding="utf-8") as f:
-                    writer = csv.DictWriter(f, fieldnames=all_data[0].keys())
-                    writer.writeheader()
-                    rows_for_csv: list[dict[str, Any]] = [dict(row) for row in all_data]
-                    writer.writerows(rows_for_csv)
-            except OSError as exc:
-                error_message = (
-                    "数据保存失败：请检查被试编号是否包含文件名非法字符，"
-                    f"participant_id={exp_info['participant_id']!r}, path={filename}.csv, error={exc}"
-                )
-                print(error_message)
-                logger.error(error_message)
-                raise
-
-        print(f"数据已保存至：{filename}.csv")
         print(f"总体正确率：{accuracy:.1f}%")
     finally:
+        # 保存事件日志到CSV文件（在finally块中确保总是执行）
+        if event_logs:
+            event_log_filename = os.path.join(experiment_folder, "events.csv")
+            try:
+                with open(event_log_filename, "w", newline="", encoding="utf-8") as f:
+                    writer = csv.DictWriter(f, fieldnames=["event_type", "timestamp", "content"])
+                    writer.writeheader()
+                    rows_for_csv: list[dict[str, Any]] = [dict(row) for row in event_logs]
+                    writer.writerows(rows_for_csv)
+                print(f"事件日志已保存至：{event_log_filename}")
+                logger.info(f"事件日志已保存至：{event_log_filename}")
+            except OSError as exc:
+                error_message = f"事件日志保存失败: {exc}"
+                print(error_message)
+                logger.error(error_message)
+
         if win is not None:
             win.close()
         core.quit()
