@@ -230,7 +230,7 @@ def get_experiment_info() -> dict[str, Any]:
             error_dlg.show()
             continue
 
-        exp_info["timestamp"] = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+        exp_info["timestamp"] = datetime.now().strftime("%Y%m%d%H%M%S")
         exp_info["feedback_enabled"] = exp_info["是否反馈"] == "是"
         exp_info["participant_id"] = participant_id
         exp_info["n_trials"] = n_trials
