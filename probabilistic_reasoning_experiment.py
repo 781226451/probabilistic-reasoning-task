@@ -67,7 +67,7 @@ SIDE_CIRCLE_X_OFFSET: int = 1400
 SHAPE_IMAGE_DIR: str = os.path.join(BASE_DIR, "assets", "shapes")
 SHAPE_IMAGE_EXT: str = ".png"
 FONT_PATH: str = os.path.join(BASE_DIR, "assets", "fonts", "NotoSansSC-Regular.ttf")
-LSL_STREAM_NAME: str = "SEEG_Marker"
+LSL_STREAM_NAME: str = "ProbabilisticReasoning"
 LSL_STREAM_TYPE: str = "Markers"
 LSL_SOURCE_ID: str = "paradigm_seeg_marker"
 
@@ -367,6 +367,17 @@ def run_experiment() -> None:
     logger: logging.Logger = setup_experiment_logger()
     print_shape_weights(logger)
 
+    # 在程序起始阶段就打开 LSL outlet，确保不错过任何早期事件
+    marker_info = StreamInfo(
+        name=LSL_STREAM_NAME,
+        type=LSL_STREAM_TYPE,
+        channel_count=1,
+        nominal_srate=0.0,
+        channel_format=cf_int8,
+        source_id=LSL_SOURCE_ID,
+    )
+    marker_outlet = StreamOutlet(marker_info)
+
     exp_info: dict[str, Any] = get_experiment_info()
     n_trials: int = int(exp_info["n_trials"])
     provide_feedback: bool = bool(exp_info["feedback_enabled"])
@@ -387,17 +398,6 @@ def run_experiment() -> None:
     event_logs: list[EventLog] = []  # 在try外部定义，确保finally块可以访问
 
     try:
-        # 初始化 LSL marker stream
-        marker_info = StreamInfo(
-            name=LSL_STREAM_NAME,
-            type=LSL_STREAM_TYPE,
-            channel_count=1,
-            nominal_srate=0.0,
-            channel_format=cf_int8,
-            source_id=LSL_SOURCE_ID,
-        )
-        marker_outlet = StreamOutlet(marker_info)
-
         win = visual.Window(
             size=SCREEN_SIZE_PIX,
             fullscr=True,
