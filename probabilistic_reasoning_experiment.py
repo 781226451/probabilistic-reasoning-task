@@ -77,7 +77,7 @@ RIGHT_KEY_PRESSED = 17
 
 # PsychoPy 颜色采用 [-1, 1] 范围的 RGB。
 COLOR_RED: list[float] = [1, -1, -1]
-COLOR_GREEN: list[float] = [-1, 1, -1]
+COLOR_GREEN: list[float] = [-1, 0.0039, -1]
 COLOR_BLACK: list[float] = [-1, -1, -1]
 COLOR_WHITE: list[float] = [1, 1, 1]
 COLOR_NAME_MAP: dict[tuple[float, ...], str] = {
