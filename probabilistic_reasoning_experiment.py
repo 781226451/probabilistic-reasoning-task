@@ -322,6 +322,45 @@ def generate_trial(left_color: list[float], right_color: list[float]) -> Trial:
     }
 
 
+def create_experiment_folder(participant_id: str, timestamp: str, n_trials: int, feedback_enabled: bool, logger: logging.Logger) -> str:
+    """在实验开始时创建独立文件夹并保存配置信息。
+
+    文件夹命名格式：被试编号_年月日时分秒
+    返回创建的文件夹路径
+    """
+    if not SHAPE_CONFIGS:
+        raise RuntimeError("shape 配置尚未初始化，请先调用 initialize_shape_configs()")
+
+    if not os.path.exists(DATA_DIR):
+        os.makedirs(DATA_DIR)
+
+    # 创建实验文件夹
+    experiment_folder = os.path.join(DATA_DIR, f"{participant_id}_{timestamp}")
+    os.makedirs(experiment_folder, exist_ok=True)
+
+    # 创建config.txt文件
+    config_filename = os.path.join(experiment_folder, "config.txt")
+    with open(config_filename, "w", encoding="utf-8") as f:
+        f.write("=" * 40 + "\n")
+        f.write("实验配置信息\n")
+        f.write("=" * 40 + "\n")
+        f.write(f"被试编号: {participant_id}\n")
+        f.write(f"实验开始时间: {timestamp}\n")
+        f.write(f"trial个数: {n_trials}\n")
+        f.write(f"是否进行反馈: {'是' if feedback_enabled else '否'}\n")
+        f.write("\n")
+        f.write("Shape权重配置:\n")
+        f.write("-" * 40 + "\n")
+        for shape_name, shape_config in SHAPE_CONFIGS.items():
+            f.write(f"{shape_name}: {shape_config['weight']}\n")
+
+    message = f"实验文件夹已创建：{experiment_folder}"
+    print(message)
+    logger.info(message)
+
+    return experiment_folder
+
+
 def run_experiment() -> None:
     """实验主流程。
 
@@ -339,11 +378,20 @@ def run_experiment() -> None:
     n_trials: int = int(exp_info["n_trials"])
     provide_feedback: bool = bool(exp_info["feedback_enabled"])
 
-    if not os.path.exists(DATA_DIR):
-        os.makedirs(DATA_DIR)
+    # 创建实验文件夹并保存配置信息
+    experiment_folder = create_experiment_folder(
+        exp_info['participant_id'],
+        exp_info['timestamp'],
+        n_trials,
+        provide_feedback,
+        logger
+    )
+
+    # 记录实验信息到日志
+    logger.info(f"实验开始 - 被试编号: {exp_info['participant_id']}, 时间戳: {exp_info['timestamp']}, trial数: {n_trials}, 是否反馈: {provide_feedback}")
 
     # 保存文件名包含被试编号与时间戳，避免覆盖历史数据。
-    filename: str = os.path.join(DATA_DIR, f"sub-{exp_info['participant_id']}_{exp_info['timestamp']}")
+    filename: str = os.path.join(experiment_folder, f"sub-{exp_info['participant_id']}_{exp_info['timestamp']}")
 
     win: visual.Window | None = None
     try:
