@@ -47,9 +47,32 @@ class EventLog(TypedDict):
     content: str
 
 
+class FontConfig(TypedDict):
+    """字体配置。"""
+
+    name: str
+    file: str
+
+
+class DisplayProfile(TypedDict):
+    """单个显示配置文件的参数。"""
+
+    name: str
+    screen_size: list[int]
+    shape_size: int
+    circle_size: int
+    side_circle_x_offset: int
+    instruction_text_height: int
+    instruction_wrap_width: int
+    decision_text_height: int
+    feedback_text_height: int
+    end_text_height: int
+
+
 # ==================== Experiment Parameters ====================
 BASE_DIR: str = os.path.dirname(os.path.abspath(__file__))
 SHAPE_WEIGHTS_CONFIG_PATH: str = os.path.join(BASE_DIR, "assets", "shape_config.toml")
+DISPLAY_CONFIG_PATH: str = os.path.join(BASE_DIR, "display_config.toml")
 DATA_DIR: str = os.path.join(BASE_DIR, "data")
 LOG_FILE_PATH: str = os.path.join(DATA_DIR, "experiment.log")
 
@@ -60,13 +83,8 @@ ITI_DURATION: int = 800              # ms
 DECISION_TIMEOUT: int | None = 5000  # ms; 设为 None 表示不限时
 
 N_STIMULI_PER_TRIAL: int = 6
-CIRCLE_SIZE: int = 80
-SHAPE_SIZE: int = 250
-SCREEN_SIZE_PIX: list[int] = [3840, 2160]
-SIDE_CIRCLE_X_OFFSET: int = 1400
 SHAPE_IMAGE_DIR: str = os.path.join(BASE_DIR, "assets", "shapes")
 SHAPE_IMAGE_EXT: str = ".png"
-FONT_PATH: str = os.path.join(BASE_DIR, "assets", "fonts", "NotoSansSC-Regular.ttf")
 LSL_STREAM_NAME: str = "ProbabilisticReasoning"
 LSL_STREAM_TYPE: str = "Markers"
 LSL_SOURCE_ID: str = "paradigm_seeg_marker"
@@ -138,6 +156,30 @@ def initialize_shape_configs(config_path: str = SHAPE_WEIGHTS_CONFIG_PATH) -> No
     SHAPE_WEIGHTS = {shape_name: cfg["weight"] for shape_name, cfg in SHAPE_CONFIGS.items()}
 
 
+def load_display_config(config_path: str = DISPLAY_CONFIG_PATH) -> tuple[dict[str, DisplayProfile], FontConfig]:
+    """从 TOML 文件加载显示配置文件和字体配置。"""
+    if not os.path.exists(config_path):
+        raise FileNotFoundError(f"未找到显示配置文件: {config_path}")
+
+    with open(config_path, "rb") as f:
+        data: Any = tomllib.load(f)
+
+    profiles: dict[str, Any] = data.get("profiles", {})
+    if not profiles:
+        raise ValueError("显示配置文件中没有有效的 profiles")
+
+    raw_font: dict[str, Any] = data.get("fonts", {})
+    if not raw_font:
+        raise ValueError("显示配置文件中缺少 [fonts] 配置")
+
+    font_config: FontConfig = {
+        "name": raw_font["name"],
+        "file": os.path.join(BASE_DIR, raw_font["file"]),
+    }
+
+    return profiles, font_config  # type: ignore[return-value]
+
+
 def setup_experiment_logger(log_path: str = LOG_FILE_PATH) -> logging.Logger:
     """创建实验日志器（写入文件）。"""
     os.makedirs(os.path.dirname(log_path), exist_ok=True)
@@ -191,12 +233,13 @@ def safe_wait(duration_sec: float, check_interval: float = 0.01) -> None:
         core.wait(min(check_interval, remaining))
 
 
-def get_experiment_info() -> dict[str, Any]:
+def get_experiment_info(profile_names: list[str]) -> dict[str, Any]:
     """收集实验参数并转换成程序内部字段。"""
     exp_info: dict[str, Any] = {
         "被试编号": "",
         "trial数": 20,
         "是否反馈": ["否", "是"],
+        "显示配置": profile_names,
     }
 
     while True:
@@ -225,6 +268,7 @@ def get_experiment_info() -> dict[str, Any]:
         exp_info["feedback_enabled"] = exp_info["是否反馈"] == "是"
         exp_info["participant_id"] = participant_id
         exp_info["n_trials"] = n_trials
+        exp_info["display_profile_name"] = exp_info["显示配置"]
         return exp_info
 
     raise RuntimeError("unreachable: get_experiment_info() exited input loop unexpectedly")
@@ -238,7 +282,7 @@ def color_to_name(color: list[float]) -> str:
     return COLOR_NAME_MAP[key]
 
 
-def create_shape_images(win: visual.Window, size: int = SHAPE_SIZE) -> dict[str, dict[str, visual.ImageStim]]:
+def create_shape_images(win: visual.Window, size: int = 250) -> dict[str, dict[str, visual.ImageStim]]:
     """按配置加载图形的红/绿图片刺激。
 
     约定目录结构（优先）：
@@ -367,6 +411,10 @@ def run_experiment() -> None:
     logger: logging.Logger = setup_experiment_logger()
     print_shape_weights(logger)
 
+    display_profiles, font_config = load_display_config()
+    profile_name_to_key: dict[str, str] = {v["name"]: k for k, v in display_profiles.items()}
+    profile_names: list[str] = list(profile_name_to_key.keys())
+
     # 在程序起始阶段就打开 LSL outlet，确保不错过任何早期事件
     marker_info = StreamInfo(
         name=LSL_STREAM_NAME,
@@ -378,7 +426,8 @@ def run_experiment() -> None:
     )
     marker_outlet = StreamOutlet(marker_info)
 
-    exp_info: dict[str, Any] = get_experiment_info()
+    exp_info: dict[str, Any] = get_experiment_info(profile_names)
+    dp: DisplayProfile = display_profiles[profile_name_to_key[exp_info["display_profile_name"]]]
     n_trials: int = int(exp_info["n_trials"])
     provide_feedback: bool = bool(exp_info["feedback_enabled"])
 
@@ -399,27 +448,27 @@ def run_experiment() -> None:
 
     try:
         win = visual.Window(
-            size=SCREEN_SIZE_PIX,
+            size=dp["screen_size"],
             fullscr=True,
             color=COLOR_WHITE,
             units="pix",
             allowGUI=False,
         )
 
-        shape_images: dict[str, dict[str, visual.ImageStim]] = create_shape_images(win)
+        shape_images: dict[str, dict[str, visual.ImageStim]] = create_shape_images(win, size=dp["shape_size"])
 
         left_circle = visual.Circle(
             win,
-            radius=CIRCLE_SIZE / 2,
-            pos=[-SIDE_CIRCLE_X_OFFSET, 0],
+            radius=dp["circle_size"] / 2,
+            pos=[-dp["side_circle_x_offset"], 0],
             fillColor=COLOR_RED,
             lineColor=None,
         )
-        center_circle = visual.Circle(win, radius=CIRCLE_SIZE / 2, pos=[0, 0], fillColor=COLOR_BLACK, lineColor=None)
+        center_circle = visual.Circle(win, radius=dp["circle_size"] / 2, pos=[0, 0], fillColor=COLOR_BLACK, lineColor=None)
         right_circle = visual.Circle(
             win,
-            radius=CIRCLE_SIZE / 2,
-            pos=[SIDE_CIRCLE_X_OFFSET, 0],
+            radius=dp["circle_size"] / 2,
+            pos=[dp["side_circle_x_offset"], 0],
             fillColor=COLOR_GREEN,
             lineColor=None,
         )
@@ -435,23 +484,24 @@ def run_experiment() -> None:
                 "按空格键（SPACE）开始。"
             ),
             color=COLOR_BLACK,
-            height=60,
-            wrapWidth=1500,
-            font="Noto Sans SC",
-            fontFiles=[FONT_PATH],
+            height=dp["instruction_text_height"],
+            wrapWidth=dp["instruction_wrap_width"],
+            font=font_config["name"],
+            fontFiles=[font_config["file"]],
         )
 
         decision_text = visual.TextStim(
             win,
             text="请作答\n\n左键（LEFT）：左侧总权重更高\n右键（RIGHT）：右侧总权重更高",
             color=COLOR_BLACK,
-            height=35,
-            font="Noto Sans SC",
-            fontFiles=[FONT_PATH],
+            height=dp["decision_text_height"],
+            font=font_config["name"],
+            fontFiles=[font_config["file"]],
         )
 
         feedback_text = visual.TextStim(
-            win, text="", color=COLOR_BLACK, height=40, font="Noto Sans SC", fontFiles=[FONT_PATH]
+            win, text="", color=COLOR_BLACK, height=dp["feedback_text_height"],
+            font=font_config["name"], fontFiles=[font_config["file"]],
         )
 
         instruction_text.draw()
@@ -633,9 +683,9 @@ def run_experiment() -> None:
             win,
             text=f"实验结束！\n\n正确率：{accuracy:.1f}%\n\n感谢参与！",
             color=COLOR_BLACK,
-            height=35,
-            font="Noto Sans SC",
-            fontFiles=[FONT_PATH],
+            height=dp["end_text_height"],
+            font=font_config["name"],
+            fontFiles=[font_config["file"]],
         )
         end_text.draw()
         win.flip()
