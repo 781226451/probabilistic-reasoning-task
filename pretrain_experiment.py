@@ -13,11 +13,8 @@ from psychopy import core, event, gui, visual
 import probabilistic_reasoning_experiment as pre
 from probabilistic_reasoning_experiment import (
     COLOR_BLACK,
-    COLOR_GREEN,
-    COLOR_RED,
     COLOR_WHITE,
     check_escape,
-    create_shape_images,
     initialize_shape_configs,
     load_experiment_config,
     print_shape_weights,
@@ -32,6 +29,32 @@ class PretrainTrial(TypedDict):
     left_weight: float
     right_weight: float
     correct_response: str
+
+
+def create_black_shape_images(win: visual.Window, size: int) -> dict[str, visual.ImageStim]:
+    if not pre.SHAPE_CONFIGS:
+        raise RuntimeError("shape 配置尚未初始化，请先调用 initialize_shape_configs()")
+
+    shape_images: dict[str, visual.ImageStim] = {}
+    for shape_name, shape_config in pre.SHAPE_CONFIGS.items():
+        image_base = shape_config["image"]
+        image_filename = f"{image_base}_black{pre.SHAPE_IMAGE_EXT}"
+        image_path = os.path.join(pre.SHAPE_IMAGE_DIR, image_base, image_filename)
+        if not os.path.exists(image_path):
+            image_path = os.path.join(pre.SHAPE_IMAGE_DIR, image_filename)
+        if not os.path.exists(image_path):
+            raise FileNotFoundError(f"未找到黑色图形图片: {image_path}")
+
+        shape_images[shape_name] = visual.ImageStim(
+            win,
+            image=image_path,
+            size=(size, size),
+            pos=(0, 0),
+            color=(255, 255, 255),
+            colorSpace="rgb255",
+        )
+
+    return shape_images
 
 
 def get_pretrain_info(profile_names: list[str]) -> dict[str, Any]:
@@ -119,8 +142,7 @@ def run_pretrain() -> None:
     n_trials = int(exp_info["n_trials"])
     pretrain_folder = create_pretrain_folder(exp_info["timestamp"])
 
-    initial_prompt_sec = timing["initial_prompt_duration"] / 1000.0
-    stimulus_sec = timing["stimulus_duration"] / 1000.0
+    stimulus_sec = 5.0
     iti_sec = timing["iti_duration"] / 1000.0
     page_transition_sec = 0.2
     decision_timeout = timing["decision_timeout"]
@@ -137,44 +159,37 @@ def run_pretrain() -> None:
             allowGUI=False,
         )
 
-        shape_images = create_shape_images(win, size=dp["shape_size"])
+        shape_images = create_black_shape_images(win, size=dp["shape_size"])
 
         left_pos = [-dp["side_circle_x_offset"], 0]
         right_pos = [dp["side_circle_x_offset"], 0]
-        left_circle = visual.Circle(
-            win,
-            radius=dp["circle_size"] / 2,
-            pos=left_pos,
-            fillColor=COLOR_RED,
-            lineColor=None,
-        )
-        center_circle = visual.Circle(
-            win,
-            radius=dp["circle_size"] / 2,
-            pos=[0, 0],
-            fillColor=COLOR_BLACK,
-            lineColor=None,
-        )
-        right_circle = visual.Circle(
-            win,
-            radius=dp["circle_size"] / 2,
-            pos=right_pos,
-            fillColor=COLOR_GREEN,
-            lineColor=None,
-        )
-
         instruction_text = visual.TextStim(
             win,
             text=(
                 "预训练开始。\n"
-                "每个 trial 会先显示三个圆形（左红/中黑/右绿）。\n"
-                "随后左右会各出现一个绿色图形，请判断哪边更大。\n"
+                "每个 trial 左右会各出现一个黑色图形，请判断哪边更大。\n"
                 "左箭头：左边大，右箭头：右边大。\n"
                 "按空格键开始。"
             ),
             color=COLOR_BLACK,
             height=dp["instruction_text_height"],
             wrapWidth=dp["instruction_wrap_width"],
+            font=font_config["name"],
+            fontFiles=[font_config["file"]],
+        )
+        left_weight_text_stim = visual.TextStim(
+            win,
+            text="",
+            color=COLOR_BLACK,
+            height=max(24, int(dp["decision_text_height"] * 0.9)),
+            font=font_config["name"],
+            fontFiles=[font_config["file"]],
+        )
+        right_weight_text_stim = visual.TextStim(
+            win,
+            text="",
+            color=COLOR_BLACK,
+            height=max(24, int(dp["decision_text_height"] * 0.9)),
             font=font_config["name"],
             fontFiles=[font_config["file"]],
         )
@@ -210,20 +225,11 @@ def run_pretrain() -> None:
             check_escape()
             trial = generate_pretrain_trial()
 
-            left_shape_stim = shape_images[trial["left_shape"]]["green"]
-            right_shape_stim = shape_images[trial["right_shape"]]["green"]
+            left_shape_stim = shape_images[trial["left_shape"]]
+            right_shape_stim = shape_images[trial["right_shape"]]
             left_shape_stim.pos = left_pos
             right_shape_stim.pos = right_pos
 
-            left_circle.draw()
-            center_circle.draw()
-            right_circle.draw()
-            win.flip()
-            safe_wait(initial_prompt_sec)
-
-            left_circle.draw()
-            center_circle.draw()
-            right_circle.draw()
             left_shape_stim.draw()
             right_shape_stim.draw()
             win.flip()
@@ -277,14 +283,28 @@ def run_pretrain() -> None:
             if not is_correct:
                 left_weight_text = f"{trial['left_weight']:g}"
                 right_weight_text = f"{trial['right_weight']:g}"
-                decision_text.text += (
-                    "\n\n本题形状权重：\n"
-                    f"左侧 {trial['left_shape']}: {left_weight_text}\n"
-                    f"右侧 {trial['right_shape']}: {right_weight_text}"
-                )
             decision_text.text += "\n\n按空格键进入下一题"
             decision_text.color = [-1, 1, -1] if is_correct else [1, -1, -1]
-            decision_text.draw()
+            if is_correct:
+                decision_text.draw()
+            else:
+                feedback_shape_y = -40
+                feedback_weight_y = int(feedback_shape_y - dp["shape_size"] / 2 - 40)
+                decision_text.pos = (0, 170)
+                decision_text.draw()
+
+                left_shape_stim.pos = (left_pos[0], feedback_shape_y)
+                right_shape_stim.pos = (right_pos[0], feedback_shape_y)
+                left_shape_stim.draw()
+                right_shape_stim.draw()
+
+                left_weight_text_stim.pos = (left_pos[0], feedback_weight_y)
+                right_weight_text_stim.pos = (right_pos[0], feedback_weight_y)
+                left_weight_text_stim.text = f"权重：{left_weight_text}"
+                right_weight_text_stim.text = f"权重：{right_weight_text}"
+                left_weight_text_stim.draw()
+                right_weight_text_stim.draw()
+                decision_text.pos = (0, 0)
             win.flip()
             event.clearEvents(eventType="keyboard")
             next_key = event.waitKeys(keyList=["space", "escape"])
