@@ -31,6 +31,77 @@ class PretrainTrial(TypedDict):
     correct_response: str
 
 
+def draw_shape_weight_legend_page(
+    win: visual.Window,
+    shape_images: dict[str, visual.ImageStim],
+    dp: dict[str, Any],
+    font_config: dict[str, str],
+) -> None:
+    if not pre.SHAPE_CONFIGS:
+        raise RuntimeError("shape 配置尚未初始化，请先调用 initialize_shape_configs()")
+
+    sorted_items = sorted(pre.SHAPE_CONFIGS.items(), key=lambda item: item[1]["weight"], reverse=True)
+    if not sorted_items:
+        return
+
+    columns = 3 if len(sorted_items) >= 5 else 2
+    rows = (len(sorted_items) + columns - 1) // columns
+
+    max_x = int(dp["instruction_wrap_width"] * 0.4)
+    if columns == 2:
+        x_positions = [-max_x, max_x]
+    else:
+        x_positions = [-max_x, 0, max_x]
+
+    row_gap = int(dp["shape_size"] * 1.9)
+    y_start = int(row_gap * (rows - 1) / 2)
+
+    title_text = visual.TextStim(
+        win,
+        text="不同形状权重说明",
+        pos=(0, int(y_start + dp["shape_size"] * 1.2)),
+        color=COLOR_BLACK,
+        height=dp["instruction_text_height"],
+        wrapWidth=dp["instruction_wrap_width"],
+        font=font_config["name"],
+        fontFiles=[font_config["file"]],
+    )
+    hint_text = visual.TextStim(
+        win,
+        text="权重越大，越应优先选择对应一侧\n按空格键开始预训练",
+        pos=(0, int(-y_start - dp["shape_size"] * 1.2)),
+        color=COLOR_BLACK,
+        height=max(24, int(dp["decision_text_height"] * 0.8)),
+        wrapWidth=dp["instruction_wrap_width"],
+        font=font_config["name"],
+        fontFiles=[font_config["file"]],
+    )
+
+    title_text.draw()
+    for idx, (shape_name, shape_config) in enumerate(sorted_items):
+        col = idx % columns
+        row = idx // columns
+        x_pos = x_positions[col]
+        y_pos = int(y_start - row * row_gap)
+
+        shape_stim = shape_images[shape_name]
+        shape_stim.pos = (x_pos, y_pos + int(dp["shape_size"] * 0.08))
+        shape_stim.draw()
+
+        weight_text = visual.TextStim(
+            win,
+            text=f"权重：{shape_config['weight']:g}",
+            pos=(x_pos, y_pos - int(dp["shape_size"] * 0.62)),
+            color=COLOR_BLACK,
+            height=max(24, int(dp["decision_text_height"] * 0.85)),
+            font=font_config["name"],
+            fontFiles=[font_config["file"]],
+        )
+        weight_text.draw()
+
+    hint_text.draw()
+
+
 def create_black_shape_images(win: visual.Window, size: int) -> dict[str, visual.ImageStim]:
     if not pre.SHAPE_CONFIGS:
         raise RuntimeError("shape 配置尚未初始化，请先调用 initialize_shape_configs()")
@@ -77,7 +148,7 @@ def get_pretrain_info(profile_names: list[str]) -> dict[str, Any]:
                 raise ValueError("trial数必须是大于 0 的整数")
         except (TypeError, ValueError) as exc:
             error_dlg = gui.Dlg(title="输入错误")
-            error_dlg.addText(f"{exc}，请重新输入。")
+            error_dlg.addText(f"{exc}，请重新输入")
             error_dlg.show()
             continue
 
@@ -99,7 +170,7 @@ def create_pretrain_folder(timestamp: str) -> str:
 def generate_pretrain_trial() -> PretrainTrial:
     shape_names = list(pre.SHAPE_WEIGHTS.keys())
     if len(shape_names) < 2:
-        raise ValueError("可用形状不足 2 个，无法进行预训练。")
+        raise ValueError("可用形状不足 2 个，无法进行预训练")
 
     weighted_pairs: list[tuple[str, str]] = []
     for i in range(len(shape_names)):
@@ -145,7 +216,6 @@ def run_pretrain() -> None:
     stimulus_sec = 5.0
     iti_sec = timing["iti_duration"] / 1000.0
     page_transition_sec = 0.2
-    decision_timeout = timing["decision_timeout"]
 
     win: visual.Window | None = None
     rows: list[dict[str, Any]] = []
@@ -166,10 +236,12 @@ def run_pretrain() -> None:
         instruction_text = visual.TextStim(
             win,
             text=(
-                "预训练开始。\n"
-                "每个 trial 左右会各出现一个黑色图形，请判断哪边更大。\n"
-                "左箭头：左边大，右箭头：右边大。\n"
-                "按空格键开始。"
+                "预训练任务说明\n\n"
+                "每个试次会同时出现左右两个黑色图形\n"
+                "判断哪一侧权重更大并尽快作答\n"
+                "左方向键：左侧更大\n"
+                "右方向键：右侧更大\n\n"
+                "按空格键查看形状权重说明"
             ),
             color=COLOR_BLACK,
             height=dp["instruction_text_height"],
@@ -196,16 +268,20 @@ def run_pretrain() -> None:
 
         decision_text = visual.TextStim(
             win,
-            text="哪边大？\n左箭头：左边大  右箭头：右边大",
+            text="请判断哪一侧权重更大\n左方向键：左侧更大\n右方向键：右侧更大",
+            pos=(0, 0),
             color=COLOR_BLACK,
             height=dp["decision_text_height"],
             font=font_config["name"],
             fontFiles=[font_config["file"]],
+            alignText="center",
+            anchorHoriz="center",
+            anchorVert="center",
         )
 
         end_text = visual.TextStim(
             win,
-            text="预训练结束，感谢参与。",
+            text="预训练结束，感谢参与",
             color=COLOR_BLACK,
             height=dp["end_text_height"],
             font=font_config["name"],
@@ -213,6 +289,13 @@ def run_pretrain() -> None:
         )
 
         instruction_text.draw()
+        win.flip()
+        event.clearEvents(eventType="keyboard")
+        start_key = event.waitKeys(keyList=["space", "escape"])
+        if start_key and "escape" in start_key:
+            return
+
+        draw_shape_weight_legend_page(win, shape_images, dp, font_config)
         win.flip()
         event.clearEvents(eventType="keyboard")
         start_key = event.waitKeys(keyList=["space", "escape"])
@@ -239,7 +322,7 @@ def run_pretrain() -> None:
             win.flip()
             safe_wait(page_transition_sec)
 
-            decision_text.text = "哪边大？\n左箭头：左边大  右箭头：右边大"
+            decision_text.text = "请判断哪一侧权重更大\n左方向键：左侧更大\n右方向键：右侧更大"
             decision_text.color = COLOR_BLACK
             decision_text.draw()
             win.flip()
@@ -248,15 +331,10 @@ def run_pretrain() -> None:
             rt_clock = core.Clock()
             keys = event.waitKeys(
                 keyList=["left", "right", "escape"],
-                maxWait=decision_timeout / 1000.0 if decision_timeout else None,
                 timeStamped=rt_clock,  # type: ignore[arg-type]
             )
 
-            if keys is None:
-                response = "timeout"
-                rt = (decision_timeout or 0) / 1000.0
-                is_correct = False
-            elif keys[0][0] == "escape":
+            if keys[0][0] == "escape":
                 return
             else:
                 response = keys[0][0]
@@ -274,16 +352,16 @@ def run_pretrain() -> None:
                 response_side = "右边"
 
             decision_text.text = (
-                "哪边大？\n"
-                "左箭头：左边大  右箭头：右边大\n\n"
-                f"你的回答：{response_side}\n"
-                f"正确答案：{answer_side}\n"
-                f"{'回答正确' if is_correct else '回答错误'}"
+                "反馈\n"
+                "左方向键：左侧更大  右方向键：右侧更大\n\n"
+                f"你的反应：{response_side}\n"
+                f"标准答案：{answer_side}\n"
+                f"{'判断正确' if is_correct else '判断错误'}"
             )
             if not is_correct:
                 left_weight_text = f"{trial['left_weight']:g}"
                 right_weight_text = f"{trial['right_weight']:g}"
-            decision_text.text += "\n\n按空格键进入下一题"
+            decision_text.text += "\n\n按空格键进入下一试次"
             decision_text.color = [-1, 1, -1] if is_correct else [1, -1, -1]
             if is_correct:
                 decision_text.draw()
@@ -342,7 +420,7 @@ def run_pretrain() -> None:
 
         accuracy = correct_count / n_trials * 100 if n_trials > 0 else 0.0
 
-        end_text.text = f"预训练结束！\n\n正确率：{accuracy:.1f}%\n\n感谢参与。"
+        end_text.text = f"预训练结束\n\n正确率：{accuracy:.1f}%\n\n请等待正式任务开始。"
         end_text.draw()
         win.flip()
         safe_wait(3.0)
