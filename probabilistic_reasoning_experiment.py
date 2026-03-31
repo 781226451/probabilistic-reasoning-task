@@ -102,6 +102,7 @@ COLOR_RED: list[float] = [1, -1, -1]
 COLOR_GREEN: list[float] = [-1, 0.0039, -1]
 COLOR_BLACK: list[float] = [-1, -1, -1]
 COLOR_WHITE: list[float] = [1, 1, 1]
+COLOR_GRAY: list[float] = [0, 0, 0]
 COLOR_NAME_MAP: dict[tuple[float, ...], str] = {
     tuple(COLOR_RED): "red",
     tuple(COLOR_GREEN): "green",
@@ -474,7 +475,7 @@ def run_experiment() -> None:
         win = visual.Window(
             size=dp["screen_size"],
             fullscr=True,
-            color=COLOR_WHITE,
+            color=COLOR_GRAY,
             units="pix",
             allowGUI=False,
         )

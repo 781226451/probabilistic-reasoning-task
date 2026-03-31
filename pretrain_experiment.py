@@ -13,7 +13,7 @@ from psychopy import core, event, gui, visual
 import probabilistic_reasoning_experiment as pre
 from probabilistic_reasoning_experiment import (
     COLOR_BLACK,
-    COLOR_WHITE,
+    COLOR_GRAY,
     check_escape,
     initialize_shape_configs,
     load_experiment_config,
@@ -224,7 +224,7 @@ def run_pretrain() -> None:
         win = visual.Window(
             size=dp["screen_size"],
             fullscr=True,
-            color=COLOR_WHITE,
+            color=COLOR_GRAY,
             units="pix",
             allowGUI=False,
         )
