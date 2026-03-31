@@ -63,7 +63,7 @@ class DisplayProfile(TypedDict):
     circle_size: int
     side_circle_x_offset: int
     instruction_text_height: int
-    instruction_wrap_width: int
+    wrap_width: int
     decision_text_height: int
     feedback_text_height: int
     end_text_height: int
@@ -534,7 +534,7 @@ def run_experiment() -> None:
             ),
             color=COLOR_BLACK,
             height=dp["instruction_text_height"],
-            wrapWidth=dp["instruction_wrap_width"],
+            wrapWidth=dp["wrap_width"],
             alignText="center",
             anchorHoriz="center",
             font=font_config["name"],
@@ -546,6 +546,7 @@ def run_experiment() -> None:
             text="请作答\n\n左键（LEFT）：左侧总权重更高\n右键（RIGHT）：右侧总权重更高",
             color=COLOR_BLACK,
             height=dp["decision_text_height"],
+            wrapWidth=dp["wrap_width"],
             font=font_config["name"],
             fontFiles=[font_config["file"]],
         )
@@ -555,6 +556,7 @@ def run_experiment() -> None:
             text="",
             color=COLOR_BLACK,
             height=dp["feedback_text_height"],
+            wrapWidth=dp["wrap_width"],
             font=font_config["name"],
             fontFiles=[font_config["file"]],
         )
@@ -741,6 +743,7 @@ def run_experiment() -> None:
             text=f"实验结束！\n\n正确率：{accuracy:.1f}%\n\n感谢参与！",
             color=COLOR_BLACK,
             height=dp["end_text_height"],
+            wrapWidth=dp["wrap_width"],
             font=font_config["name"],
             fontFiles=[font_config["file"]],
         )

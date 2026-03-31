@@ -47,7 +47,7 @@ def draw_shape_weight_legend_page(
     columns = 3 if len(sorted_items) >= 5 else 2
     rows = (len(sorted_items) + columns - 1) // columns
 
-    max_x = int(dp["instruction_wrap_width"] * 0.4)
+    max_x = int(dp["wrap_width"] * 0.4)
     if columns == 2:
         x_positions = [-max_x, max_x]
     else:
@@ -62,7 +62,7 @@ def draw_shape_weight_legend_page(
         pos=(0, int(y_start + dp["shape_size"] * 1.2)),
         color=COLOR_BLACK,
         height=dp["instruction_text_height"],
-        wrapWidth=dp["instruction_wrap_width"],
+        wrapWidth=dp["wrap_width"],
         font=font_config["name"],
         fontFiles=[font_config["file"]],
     )
@@ -72,7 +72,7 @@ def draw_shape_weight_legend_page(
         pos=(0, int(-y_start - dp["shape_size"] * 1.2)),
         color=COLOR_BLACK,
         height=max(24, int(dp["decision_text_height"] * 0.8)),
-        wrapWidth=dp["instruction_wrap_width"],
+        wrapWidth=dp["wrap_width"],
         font=font_config["name"],
         fontFiles=[font_config["file"]],
     )
@@ -94,6 +94,7 @@ def draw_shape_weight_legend_page(
             pos=(x_pos, y_pos - int(dp["shape_size"] * 0.62)),
             color=COLOR_BLACK,
             height=max(24, int(dp["decision_text_height"] * 0.85)),
+            wrapWidth=dp["wrap_width"],
             font=font_config["name"],
             fontFiles=[font_config["file"]],
         )
@@ -251,7 +252,7 @@ def run_pretrain() -> None:
             ),
             color=COLOR_BLACK,
             height=dp["instruction_text_height"],
-            wrapWidth=dp["instruction_wrap_width"],
+            wrapWidth=dp["wrap_width"],
             alignText="center",
             anchorHoriz="center",
             font=font_config["name"],
@@ -262,6 +263,7 @@ def run_pretrain() -> None:
             text="",
             color=COLOR_BLACK,
             height=max(24, int(dp["decision_text_height"] * 0.9)),
+            wrapWidth=dp["wrap_width"],
             font=font_config["name"],
             fontFiles=[font_config["file"]],
         )
@@ -270,6 +272,7 @@ def run_pretrain() -> None:
             text="",
             color=COLOR_BLACK,
             height=max(24, int(dp["decision_text_height"] * 0.9)),
+            wrapWidth=dp["wrap_width"],
             font=font_config["name"],
             fontFiles=[font_config["file"]],
         )
@@ -280,6 +283,7 @@ def run_pretrain() -> None:
             pos=(0, 0),
             color=COLOR_BLACK,
             height=dp["decision_text_height"],
+            wrapWidth=dp["wrap_width"],
             font=font_config["name"],
             fontFiles=[font_config["file"]],
             alignText="center",
@@ -292,6 +296,7 @@ def run_pretrain() -> None:
             text="预训练结束，感谢参与",
             color=COLOR_BLACK,
             height=dp["end_text_height"],
+            wrapWidth=dp["wrap_width"],
             font=font_config["name"],
             fontFiles=[font_config["file"]],
         )
