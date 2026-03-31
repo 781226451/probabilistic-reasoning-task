@@ -524,8 +524,12 @@ def run_experiment() -> None:
         )
 
         feedback_text = visual.TextStim(
-            win, text="", color=COLOR_BLACK, height=dp["feedback_text_height"],
-            font=font_config["name"], fontFiles=[font_config["file"]],
+            win,
+            text="",
+            color=COLOR_BLACK,
+            height=dp["feedback_text_height"],
+            font=font_config["name"],
+            fontFiles=[font_config["file"]],
         )
 
         instruction_text.draw()

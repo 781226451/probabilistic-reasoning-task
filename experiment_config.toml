@@ -23,7 +23,7 @@ side_circle_x_offset = 1400
 instruction_text_height = 60
 instruction_wrap_width = 1500
 decision_text_height = 35
-feedback_text_height = 40
+feedback_text_height = 70
 end_text_height = 35
 
 [profiles.macbook_16]
@@ -35,7 +35,7 @@ side_circle_x_offset = 935
 instruction_text_height = 40
 instruction_wrap_width = 1000
 decision_text_height = 23
-feedback_text_height = 27
+feedback_text_height = 48
 end_text_height = 23
 
 [profiles.macbook_14]
@@ -47,5 +47,5 @@ side_circle_x_offset = 550
 instruction_text_height = 30
 instruction_wrap_width = 590
 decision_text_height = 30
-feedback_text_height = 30
+feedback_text_height = 54
 end_text_height = 30
