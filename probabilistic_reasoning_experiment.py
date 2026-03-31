@@ -654,27 +654,22 @@ def run_experiment() -> None:
             # 清空此前阶段残留的键盘事件，避免提前按键污染本阶段 RT 与响应。
             event.clearEvents(eventType="keyboard")
             rt_clock: core.Clock = core.Clock()
-            keys: list[tuple[str, float]] | None = event.waitKeys(
+            keys: list[tuple[str, float]] = event.waitKeys(
                 keyList=["left", "right", "escape"],
-                maxWait=DECISION_TIMEOUT / 1000.0 if DECISION_TIMEOUT else None,
                 timeStamped=rt_clock,  # type: ignore[arg-type] # PsychoPy 实际支持 Clock
             )
 
-            if keys is None:
-                response: str = "timeout"
-                rt: float = (DECISION_TIMEOUT or 0) / 1000.0
-                is_correct: bool = False
-            elif keys[0][0] == "escape":
+            if keys[0][0] == "escape":
                 return
             else:
-                response = keys[0][0]
-                rt = keys[0][1]
+                response: str = keys[0][0]
+                rt: float = keys[0][1]
                 # 发送 LSL marker
                 if response == "left":
                     marker_outlet.push_sample([lsl_markers["left_key_pressed"]])
                 elif response == "right":
                     marker_outlet.push_sample([lsl_markers["right_key_pressed"]])
-                is_correct = response == trial["correct_response"]
+                is_correct: bool = response == trial["correct_response"]
 
             # 记录响应事件
             event_logs.append({
@@ -683,8 +678,8 @@ def run_experiment() -> None:
                 "content": f"Trial {trial_num} 响应: {response}, 正确: {is_correct}, RT: {rt:.3f}s",
             })
 
-            # 4) 反馈阶段（可选）：仅在非超时时显示对错。
-            if provide_feedback and response != "timeout":
+            # 4) 反馈阶段（可选）
+            if provide_feedback:
                 if is_correct:
                     feedback_text.text = "正确"
                     feedback_text.color = [-1, 1, -1]
