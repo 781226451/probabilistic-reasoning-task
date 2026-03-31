@@ -69,18 +69,22 @@ class DisplayProfile(TypedDict):
     end_text_height: int
 
 
+class TimingConfig(TypedDict):
+    """实验时序参数（单位：毫秒）。"""
+
+    initial_prompt_duration: int
+    stimulus_duration: int
+    isi_duration: int
+    iti_duration: int
+    decision_timeout: int | None
+
+
 # ==================== Experiment Parameters ====================
 BASE_DIR: str = os.path.dirname(os.path.abspath(__file__))
 SHAPE_WEIGHTS_CONFIG_PATH: str = os.path.join(BASE_DIR, "assets", "shape_config.toml")
-DISPLAY_CONFIG_PATH: str = os.path.join(BASE_DIR, "display_config.toml")
+EXPERIMENT_CONFIG_PATH: str = os.path.join(BASE_DIR, "experiment_config.toml")
 DATA_DIR: str = os.path.join(BASE_DIR, "data")
 LOG_FILE_PATH: str = os.path.join(DATA_DIR, "experiment.log")
-
-INITIAL_PROMPT_DURATION: int = 1500  # ms
-STIMULUS_DURATION: int = 500         # ms
-ISI_DURATION: int = 500              # ms
-ITI_DURATION: int = 800              # ms
-DECISION_TIMEOUT: int | None = 5000  # ms; 设为 None 表示不限时
 
 N_STIMULI_PER_TRIAL: int = 6
 SHAPE_IMAGE_DIR: str = os.path.join(BASE_DIR, "assets", "shapes")
@@ -156,28 +160,43 @@ def initialize_shape_configs(config_path: str = SHAPE_WEIGHTS_CONFIG_PATH) -> No
     SHAPE_WEIGHTS = {shape_name: cfg["weight"] for shape_name, cfg in SHAPE_CONFIGS.items()}
 
 
-def load_display_config(config_path: str = DISPLAY_CONFIG_PATH) -> tuple[dict[str, DisplayProfile], FontConfig]:
-    """从 TOML 文件加载显示配置文件和字体配置。"""
+def load_experiment_config(
+    config_path: str = EXPERIMENT_CONFIG_PATH,
+) -> tuple[dict[str, DisplayProfile], FontConfig, TimingConfig]:
+    """从 TOML 文件加载实验配置（显示参数、字体、时序参数）。"""
     if not os.path.exists(config_path):
-        raise FileNotFoundError(f"未找到显示配置文件: {config_path}")
+        raise FileNotFoundError(f"未找到实验配置文件: {config_path}")
 
     with open(config_path, "rb") as f:
         data: Any = tomllib.load(f)
 
     profiles: dict[str, Any] = data.get("profiles", {})
     if not profiles:
-        raise ValueError("显示配置文件中没有有效的 profiles")
+        raise ValueError("实验配置文件中没有有效的 profiles")
 
     raw_font: dict[str, Any] = data.get("fonts", {})
     if not raw_font:
-        raise ValueError("显示配置文件中缺少 [fonts] 配置")
+        raise ValueError("实验配置文件中缺少 [fonts] 配置")
 
     font_config: FontConfig = {
         "name": raw_font["name"],
         "file": os.path.join(BASE_DIR, raw_font["file"]),
     }
 
-    return profiles, font_config  # type: ignore[return-value]
+    raw_timing: dict[str, Any] = data.get("timing", {})
+    if not raw_timing:
+        raise ValueError("实验配置文件中缺少 [timing] 配置")
+
+    raw_timeout: Any = raw_timing.get("decision_timeout", 5000)
+    timing: TimingConfig = {
+        "initial_prompt_duration": int(raw_timing["initial_prompt_duration"]),
+        "stimulus_duration": int(raw_timing["stimulus_duration"]),
+        "isi_duration": int(raw_timing["isi_duration"]),
+        "iti_duration": int(raw_timing["iti_duration"]),
+        "decision_timeout": int(raw_timeout) if raw_timeout else None,
+    }
+
+    return profiles, font_config, timing  # type: ignore[return-value]
 
 
 def setup_experiment_logger(log_path: str = LOG_FILE_PATH) -> logging.Logger:
@@ -411,7 +430,12 @@ def run_experiment() -> None:
     logger: logging.Logger = setup_experiment_logger()
     print_shape_weights(logger)
 
-    display_profiles, font_config = load_display_config()
+    display_profiles, font_config, timing = load_experiment_config()
+    INITIAL_PROMPT_DURATION: int = timing["initial_prompt_duration"]
+    STIMULUS_DURATION: int = timing["stimulus_duration"]
+    ISI_DURATION: int = timing["isi_duration"]
+    ITI_DURATION: int = timing["iti_duration"]
+    DECISION_TIMEOUT: int | None = timing["decision_timeout"]
     profile_name_to_key: dict[str, str] = {v["name"]: k for k, v in display_profiles.items()}
     profile_names: list[str] = list(profile_name_to_key.keys())
 

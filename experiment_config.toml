@@ -1,10 +1,19 @@
-# 显示配置文件：不同屏幕分辨率的视觉参数
-# 所有尺寸单位为像素（pix），与 PsychoPy units="pix" 对应。
+# 实验配置文件
 
+# ── 时序参数（单位：毫秒） ──────────────────────────────────────
+[timing]
+initial_prompt_duration = 1500  # 初始提示显示时长
+stimulus_duration = 1000        # 单个刺激显示时长
+isi_duration = 1000             # 刺激间隔（ISI）时长
+iti_duration = 800              # 试次间隔（ITI）时长
+decision_timeout = 5000         # 决策阶段超时时长；设为 0 表示不限时
+
+# ── 字体 ────────────────────────────────────────────────────────
 [fonts]
 name = "Noto Sans SC"
 file = "assets/fonts/NotoSansSC-Regular.ttf"
 
+# ── 显示配置（不同屏幕分辨率的视觉参数，尺寸单位：pix） ─────────
 [profiles.4k]
 name = "4K显示器 (3840×2160)"
 screen_size = [3840, 2160]
