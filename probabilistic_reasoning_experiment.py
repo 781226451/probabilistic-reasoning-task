@@ -501,15 +501,17 @@ def run_experiment() -> None:
             win,
             text=(
                 "欢迎参加实验！\n"
-                "每个试次会呈现一串不同颜色的图形图片。\n"
-                "请按左右两侧颜色分别累加权重，并判断哪一侧更大。\n"
-                "如果左侧总权重大于或等于右侧，请按左方向键（LEFT）。\n"
-                "如果左侧总权重小于右侧，请按右方向键（RIGHT）。\n"
-                "按空格键（SPACE）开始。"
+                "每个试次会呈现一串不同颜色的图形图片\n"
+                "请按左右两侧颜色分别累加权重，并判断哪一侧更大\n"
+                "如果左侧总权重大于或等于右侧，请按左方向键（LEFT）\n"
+                "如果左侧总权重小于右侧，请按右方向键（RIGHT）\n"
+                "按空格键（SPACE）开始"
             ),
             color=COLOR_BLACK,
             height=dp["instruction_text_height"],
             wrapWidth=dp["instruction_wrap_width"],
+            alignText="center",
+            anchorHoriz="center",
             font=font_config["name"],
             fontFiles=[font_config["file"]],
         )

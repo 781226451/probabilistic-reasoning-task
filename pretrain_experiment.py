@@ -246,6 +246,8 @@ def run_pretrain() -> None:
             color=COLOR_BLACK,
             height=dp["instruction_text_height"],
             wrapWidth=dp["instruction_wrap_width"],
+            alignText="center",
+            anchorHoriz="center",
             font=font_config["name"],
             fontFiles=[font_config["file"]],
         )
