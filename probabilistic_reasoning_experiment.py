@@ -79,6 +79,13 @@ class TimingConfig(TypedDict):
     decision_timeout: int | None
 
 
+class LslMarkersConfig(TypedDict):
+    """LSL marker 值配置。"""
+
+    left_key_pressed: int
+    right_key_pressed: int
+
+
 # ==================== Experiment Parameters ====================
 BASE_DIR: str = os.path.dirname(os.path.abspath(__file__))
 SHAPE_WEIGHTS_CONFIG_PATH: str = os.path.join(BASE_DIR, "assets", "shape_config.toml")
@@ -92,10 +99,6 @@ SHAPE_IMAGE_EXT: str = ".png"
 LSL_STREAM_NAME: str = "ProbabilisticReasoning"
 LSL_STREAM_TYPE: str = "Markers"
 LSL_SOURCE_ID: str = "paradigm_seeg_marker"
-
-# LSL marker 常量
-LEFT_KEY_PRESSED = 16
-RIGHT_KEY_PRESSED = 17
 
 # PsychoPy 颜色采用 [-1, 1] 范围的 RGB。
 COLOR_RED: list[float] = [1, -1, -1]
@@ -163,8 +166,8 @@ def initialize_shape_configs(config_path: str = SHAPE_WEIGHTS_CONFIG_PATH) -> No
 
 def load_experiment_config(
     config_path: str = EXPERIMENT_CONFIG_PATH,
-) -> tuple[dict[str, DisplayProfile], FontConfig, TimingConfig]:
-    """从 TOML 文件加载实验配置（显示参数、字体、时序参数）。"""
+) -> tuple[dict[str, DisplayProfile], FontConfig, TimingConfig, LslMarkersConfig]:
+    """从 TOML 文件加载实验配置（显示参数、字体、时序参数、LSL markers）。"""
     if not os.path.exists(config_path):
         raise FileNotFoundError(f"未找到实验配置文件: {config_path}")
 
@@ -197,7 +200,16 @@ def load_experiment_config(
         "decision_timeout": int(raw_timeout) if raw_timeout else None,
     }
 
-    return profiles, font_config, timing  # type: ignore[return-value]
+    raw_lsl: dict[str, Any] = data.get("lsl_markers", {})
+    if not raw_lsl:
+        raise ValueError("实验配置文件中缺少 [lsl_markers] 配置")
+
+    lsl_markers: LslMarkersConfig = {
+        "left_key_pressed": int(raw_lsl["left_key_pressed"]),
+        "right_key_pressed": int(raw_lsl["right_key_pressed"]),
+    }
+
+    return profiles, font_config, timing, lsl_markers  # type: ignore[return-value]
 
 
 def setup_experiment_logger(log_path: str = LOG_FILE_PATH) -> logging.Logger:
@@ -431,7 +443,7 @@ def run_experiment() -> None:
     logger: logging.Logger = setup_experiment_logger()
     print_shape_weights(logger)
 
-    display_profiles, font_config, timing = load_experiment_config()
+    display_profiles, font_config, timing, lsl_markers = load_experiment_config()
     INITIAL_PROMPT_DURATION: int = timing["initial_prompt_duration"]
     STIMULUS_DURATION: int = timing["stimulus_duration"]
     ISI_DURATION: int = timing["isi_duration"]
@@ -649,9 +661,9 @@ def run_experiment() -> None:
                 rt = keys[0][1]
                 # 发送 LSL marker
                 if response == "left":
-                    marker_outlet.push_sample([LEFT_KEY_PRESSED])
+                    marker_outlet.push_sample([lsl_markers["left_key_pressed"]])
                 elif response == "right":
-                    marker_outlet.push_sample([RIGHT_KEY_PRESSED])
+                    marker_outlet.push_sample([lsl_markers["right_key_pressed"]])
                 is_correct = response == trial["correct_response"]
 
             # 记录响应事件

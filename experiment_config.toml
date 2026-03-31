@@ -8,6 +8,11 @@ isi_duration = 1000             # 刺激间隔（ISI）时长
 iti_duration = 800              # 试次间隔（ITI）时长
 decision_timeout = 5000         # 决策阶段超时时长；设为 0 表示不限时
 
+# ── LSL Marker 值 ────────────────────────────────────────────────
+[lsl_markers]
+left_key_pressed = 16
+right_key_pressed = 17
+
 # ── 字体 ────────────────────────────────────────────────────────
 [fonts]
 name = "Noto Sans SC"
