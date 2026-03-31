@@ -134,7 +134,13 @@ def get_pretrain_info(profile_names: list[str]) -> dict[str, Any]:
         "显示配置": profile_names,
     }
 
+    choices_backup: dict[str, list[str]] = {
+        k: v for k, v in exp_info.items() if isinstance(v, list)
+    }
+
     while True:
+        for k, v in choices_backup.items():
+            exp_info[k] = v
         dlg = gui.DlgFromDict(dictionary=exp_info, title="预训练任务", sortKeys=False)
         if not dlg.OK:
             raise SystemExit("用户取消实验参数输入")
