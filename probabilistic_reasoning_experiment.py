@@ -82,6 +82,9 @@ class TimingConfig(TypedDict):
 class LslMarkersConfig(TypedDict):
     """LSL marker 值配置。"""
 
+    trial_start: int
+    trial_end: int
+    stimulus_onset: int
     left_key_pressed: int
     right_key_pressed: int
 
@@ -205,6 +208,9 @@ def load_experiment_config(
         raise ValueError("实验配置文件中缺少 [lsl_markers] 配置")
 
     lsl_markers: LslMarkersConfig = {
+        "trial_start": int(raw_lsl["trial_start"]),
+        "trial_end": int(raw_lsl["trial_end"]),
+        "stimulus_onset": int(raw_lsl["stimulus_onset"]),
         "left_key_pressed": int(raw_lsl["left_key_pressed"]),
         "right_key_pressed": int(raw_lsl["right_key_pressed"]),
     }
@@ -575,6 +581,9 @@ def run_experiment() -> None:
         })
 
         for trial_num, trial in enumerate(trials, 1):
+            # 发送 trial 开始 LSL marker
+            marker_outlet.push_sample([lsl_markers["trial_start"]])
+
             # 记录trial开始时间
             trial_start_time = datetime.now().strftime("%Y%m%d%H%M%S.%f")[:-3]  # 保留到毫秒
             logger.info(f"Trial {trial_num} 开始 - 时间: {trial_start_time}")
@@ -615,6 +624,7 @@ def run_experiment() -> None:
                 right_circle.draw()
                 shape_image.draw()
                 win.flip()
+                marker_outlet.push_sample([lsl_markers["stimulus_onset"]])
 
                 event_logs.append({
                     "event_type": "stimulus_display",
@@ -692,6 +702,9 @@ def run_experiment() -> None:
                 })
 
                 safe_wait(0.8)
+
+            # 发送 trial 结束 LSL marker
+            marker_outlet.push_sample([lsl_markers["trial_end"]])
 
             # 5) ITI：清屏等待，给下一试次留出间隔。
             win.flip()
